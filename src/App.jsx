@@ -4,6 +4,7 @@ import './App.css'
 const BEANS_STORAGE_KEY = 'coffee-log-owned-beans'
 const EQUIPMENT_STORAGE_KEY = 'coffee-log-equipments'
 const BREW_LOG_STORAGE_KEY = 'coffee-log-brew-logs'
+const RECIPE_STORAGE_KEY = 'coffee-log-recipes'
 
 const emptySingleBean = {
   type: 'single',
@@ -62,6 +63,28 @@ const emptyBrewForm = {
   nextAdjustment: '',
 }
 
+const emptyPourStep = {
+  time: '',
+  water: '',
+  memo: '',
+}
+
+const emptyRecipeForm = {
+  name: '',
+  method: 'hot',
+  dripperId: '',
+  filterId: '',
+  grinderId: '',
+  grindClicks: '',
+  dose: '',
+  water: '',
+  bypassWater: '',
+  temperature: '',
+  targetTime: '',
+  pours: [{ ...emptyPourStep }],
+  memo: '',
+}
+
 function loadFromStorage(key, fallbackValue) {
   const savedValue = localStorage.getItem(key)
 
@@ -83,6 +106,7 @@ function App() {
   const [blendBean, setBlendBean] = useState(emptyBlendBean)
   const [equipmentForm, setEquipmentForm] = useState(emptyEquipmentForm)
   const [brewForm, setBrewForm] = useState(emptyBrewForm)
+  const [recipeForm, setRecipeForm] = useState(emptyRecipeForm)
 
   const [ownedBeans, setOwnedBeans] = useState(() =>
     loadFromStorage(BEANS_STORAGE_KEY, []),
@@ -92,6 +116,9 @@ function App() {
   )
   const [brewLogs, setBrewLogs] = useState(() =>
     loadFromStorage(BREW_LOG_STORAGE_KEY, []),
+  )
+  const [recipes, setRecipes] = useState(() =>
+    loadFromStorage(RECIPE_STORAGE_KEY, []),
   )
 
   useEffect(() => {
@@ -106,22 +133,39 @@ function App() {
     localStorage.setItem(BREW_LOG_STORAGE_KEY, JSON.stringify(brewLogs))
   }, [brewLogs])
 
+  useEffect(() => {
+    localStorage.setItem(RECIPE_STORAGE_KEY, JSON.stringify(recipes))
+  }, [recipes])
+
   const handleSingleChange = (event) => {
     const { name, value } = event.target
-
-    setSingleBean({
-      ...singleBean,
-      [name]: value,
-    })
+    setSingleBean({ ...singleBean, [name]: value })
   }
+const applyRecipeToBrewForm = (recipeId) => {
+  const selectedRecipe = recipes.find((recipe) => recipe.id === recipeId)
+
+  if (!selectedRecipe) {
+    return
+  }
+
+  setBrewForm({
+    ...brewForm,
+    method: selectedRecipe.method,
+    dripperId: selectedRecipe.dripperId,
+    filterId: selectedRecipe.filterId,
+    grinderId: selectedRecipe.grinderId,
+    grindClicks: selectedRecipe.grindClicks,
+    dose: selectedRecipe.dose,
+    water: selectedRecipe.water,
+    bypassWater: selectedRecipe.bypassWater,
+    temperature: selectedRecipe.temperature,
+  })
+}
+
 
   const handleBlendFieldChange = (event) => {
     const { name, value } = event.target
-
-    setBlendBean({
-      ...blendBean,
-      [name]: value,
-    })
+    setBlendBean({ ...blendBean, [name]: value })
   }
 
   const handleRatioItemChange = (groupName, index, event) => {
@@ -206,7 +250,6 @@ function App() {
 
   const deleteBean = (beanId) => {
     const isConfirmed = window.confirm('이 원두를 삭제할까?')
-
     if (!isConfirmed) return
 
     setOwnedBeans(ownedBeans.filter((bean) => bean.id !== beanId))
@@ -214,7 +257,6 @@ function App() {
 
   const clearAllBeans = () => {
     const isConfirmed = window.confirm('등록된 원두를 전부 삭제할까?')
-
     if (!isConfirmed) return
 
     setOwnedBeans([])
@@ -222,11 +264,7 @@ function App() {
 
   const handleEquipmentChange = (event) => {
     const { name, value } = event.target
-
-    setEquipmentForm({
-      ...equipmentForm,
-      [name]: value,
-    })
+    setEquipmentForm({ ...equipmentForm, [name]: value })
   }
 
   const handleSaveEquipment = (event) => {
@@ -249,7 +287,6 @@ function App() {
 
   const deleteEquipment = (equipmentId) => {
     const isConfirmed = window.confirm('이 장비를 삭제할까?')
-
     if (!isConfirmed) return
 
     setEquipments(equipments.filter((equipment) => equipment.id !== equipmentId))
@@ -261,11 +298,7 @@ function App() {
 
   const handleBrewChange = (event) => {
     const { name, value } = event.target
-
-    setBrewForm({
-      ...brewForm,
-      [name]: value,
-    })
+    setBrewForm({ ...brewForm, [name]: value })
   }
 
   const handleSaveBrewLog = (event) => {
@@ -323,10 +356,97 @@ function App() {
 
   const deleteBrewLog = (logId) => {
     const isConfirmed = window.confirm('이 추출 기록을 삭제할까?')
-
     if (!isConfirmed) return
 
     setBrewLogs(brewLogs.filter((log) => log.id !== logId))
+  }
+
+  const handleRecipeChange = (event) => {
+    const { name, value } = event.target
+    setRecipeForm({ ...recipeForm, [name]: value })
+  }
+
+  const handlePourStepChange = (index, event) => {
+    const { name, value } = event.target
+    const nextPours = [...recipeForm.pours]
+
+    nextPours[index] = {
+      ...nextPours[index],
+      [name]: value,
+    }
+
+    setRecipeForm({
+      ...recipeForm,
+      pours: nextPours,
+    })
+  }
+
+  const addPourStep = () => {
+    setRecipeForm({
+      ...recipeForm,
+      pours: [...recipeForm.pours, { ...emptyPourStep }],
+    })
+  }
+
+  const removePourStep = (index) => {
+    if (recipeForm.pours.length === 1) return
+
+    setRecipeForm({
+      ...recipeForm,
+      pours: recipeForm.pours.filter((_, pourIndex) => pourIndex !== index),
+    })
+  }
+
+  const handleSaveRecipe = (event) => {
+    event.preventDefault()
+
+    if (!recipeForm.name.trim()) {
+      alert('레시피 이름을 입력해줘.')
+      return
+    }
+
+    const selectedDripper = equipments.find((equipment) => equipment.id === recipeForm.dripperId)
+    const selectedFilter = equipments.find((equipment) => equipment.id === recipeForm.filterId)
+    const selectedGrinder = equipments.find((equipment) => equipment.id === recipeForm.grinderId)
+
+    const cleanedPours = recipeForm.pours.filter(
+      (pour) => pour.time.trim() !== '' || pour.water.trim() !== '' || pour.memo.trim() !== '',
+    )
+
+    const newRecipe = {
+      id: crypto.randomUUID(),
+      createdAt: new Date().toLocaleString(),
+
+      name: recipeForm.name,
+      method: recipeForm.method,
+
+      dripperId: selectedDripper?.id || '',
+      dripperName: selectedDripper?.name || '',
+      filterId: selectedFilter?.id || '',
+      filterName: selectedFilter?.name || '',
+      grinderId: selectedGrinder?.id || '',
+      grinderName: selectedGrinder?.name || '',
+
+      grindClicks: recipeForm.grindClicks,
+      dose: recipeForm.dose,
+      water: recipeForm.water,
+      bypassWater: recipeForm.bypassWater,
+      temperature: recipeForm.temperature,
+      targetTime: recipeForm.targetTime,
+
+      pours: cleanedPours,
+      memo: recipeForm.memo,
+    }
+
+    setRecipes([newRecipe, ...recipes])
+    setRecipeForm(emptyRecipeForm)
+  }
+
+  const deleteRecipe = (recipeId) => {
+    const isConfirmed = window.confirm('이 레시피를 삭제할까?')
+    if (!isConfirmed) return
+
+    setRecipes(recipes.filter((recipe) => recipe.id !== recipeId))
   }
 
   return (
@@ -425,23 +545,32 @@ function App() {
 
       {activeTab === 'brew' && (
         <BrewLogTab
-          form={brewForm}
-          beans={ownedBeans}
-          drippers={getEquipmentsByType('dripper')}
-          filters={getEquipmentsByType('filter')}
-          grinders={getEquipmentsByType('grinder')}
-          onChange={handleBrewChange}
-          onSubmit={handleSaveBrewLog}
-        />
+  form={brewForm}
+  beans={ownedBeans}
+  recipes={recipes}
+  drippers={getEquipmentsByType('dripper')}
+  filters={getEquipmentsByType('filter')}
+  grinders={getEquipmentsByType('grinder')}
+  onChange={handleBrewChange}
+  onApplyRecipe={applyRecipeToBrewForm}
+  onSubmit={handleSaveBrewLog}
+/>
       )}
 
       {activeTab === 'recipe' && (
-        <section className="card">
-          <h2>레시피 등록</h2>
-          <p className="empty">
-            여기는 다음 단계에서 레시피 입력폼을 만들 예정입니다.
-          </p>
-        </section>
+        <RecipeTab
+          form={recipeForm}
+          recipes={recipes}
+          drippers={getEquipmentsByType('dripper')}
+          filters={getEquipmentsByType('filter')}
+          grinders={getEquipmentsByType('grinder')}
+          onChange={handleRecipeChange}
+          onPourChange={handlePourStepChange}
+          onAddPour={addPourStep}
+          onRemovePour={removePourStep}
+          onSubmit={handleSaveRecipe}
+          onDelete={deleteRecipe}
+        />
       )}
 
       {activeTab === 'logs' && (
@@ -813,7 +942,7 @@ function EquipmentTab({ equipmentForm, equipments, onChange, onSubmit, onDelete 
         <div>
           <h2>장비 관리</h2>
           <p className="section-description">
-            드리퍼, 필터, 그라인더를 등록하면 추출 기록에서 선택할 수 있습니다.
+            드리퍼, 필터, 그라인더를 등록하면 추출 기록과 레시피에서 선택할 수 있습니다.
           </p>
         </div>
 
@@ -894,10 +1023,12 @@ function EquipmentGroup({ title, items, onDelete }) {
 function BrewLogTab({
   form,
   beans,
+  recipes,
   drippers,
   filters,
   grinders,
   onChange,
+  onApplyRecipe,
   onSubmit,
 }) {
   return (
@@ -906,7 +1037,7 @@ function BrewLogTab({
         <div>
           <h2>추출 기록</h2>
           <p className="section-description">
-            보유 원두와 등록 장비를 선택해서 추출 결과를 기록합니다.
+            보유 원두와 등록 장비를 선택해서 실제 추출 결과를 기록합니다.
           </p>
         </div>
       </div>
@@ -928,6 +1059,21 @@ function BrewLogTab({
           </label>
 
           <label>
+            레시피 불러오기
+            <select
+              value=""
+              onChange={(event) => onApplyRecipe(event.target.value)}
+            >
+              <option value="">레시피를 선택하세요</option>
+              {recipes.map((recipe) => (
+                <option key={recipe.id} value={recipe.id}>
+                  {recipe.method === 'hot' ? '[핫]' : '[아이스]'} {recipe.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
             추출 방식
             <select name="method" value={form.method} onChange={onChange}>
               <option value="hot">핫</option>
@@ -936,101 +1082,16 @@ function BrewLogTab({
           </label>
 
           <div className="grid">
-            <label>
-              드리퍼
-              <select name="dripperId" value={form.dripperId} onChange={onChange}>
-                <option value="">선택 안 함</option>
-                {drippers.map((equipment) => (
-                  <option key={equipment.id} value={equipment.id}>
-                    {equipment.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <EquipmentSelect label="드리퍼" name="dripperId" value={form.dripperId} items={drippers} onChange={onChange} />
+            <EquipmentSelect label="필터" name="filterId" value={form.filterId} items={filters} onChange={onChange} />
+            <EquipmentSelect label="그라인더" name="grinderId" value={form.grinderId} items={grinders} onChange={onChange} />
 
-            <label>
-              필터
-              <select name="filterId" value={form.filterId} onChange={onChange}>
-                <option value="">선택 안 함</option>
-                {filters.map((equipment) => (
-                  <option key={equipment.id} value={equipment.id}>
-                    {equipment.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              그라인더
-              <select name="grinderId" value={form.grinderId} onChange={onChange}>
-                <option value="">선택 안 함</option>
-                {grinders.map((equipment) => (
-                  <option key={equipment.id} value={equipment.id}>
-                    {equipment.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label>
-              클릭수
-              <input
-                name="grindClicks"
-                value={form.grindClicks}
-                onChange={onChange}
-                placeholder="예: 22"
-              />
-            </label>
-
-            <label>
-              원두량 g
-              <input
-                name="dose"
-                value={form.dose}
-                onChange={onChange}
-                placeholder="예: 30"
-              />
-            </label>
-
-            <label>
-              물량 g
-              <input
-                name="water"
-                value={form.water}
-                onChange={onChange}
-                placeholder="예: 300"
-              />
-            </label>
-
-            <label>
-              가수량 g
-              <input
-                name="bypassWater"
-                value={form.bypassWater}
-                onChange={onChange}
-                placeholder="예: 100"
-              />
-            </label>
-
-            <label>
-              물온도 ℃
-              <input
-                name="temperature"
-                value={form.temperature}
-                onChange={onChange}
-                placeholder="예: 92"
-              />
-            </label>
-
-            <label>
-              추출시간
-              <input
-                name="brewTime"
-                value={form.brewTime}
-                onChange={onChange}
-                placeholder="예: 2:40"
-              />
-            </label>
+            <TextInput label="클릭수" name="grindClicks" value={form.grindClicks} onChange={onChange} placeholder="예: 22" />
+            <TextInput label="원두량 g" name="dose" value={form.dose} onChange={onChange} placeholder="예: 30" />
+            <TextInput label="물량 g" name="water" value={form.water} onChange={onChange} placeholder="예: 300" />
+            <TextInput label="가수량 g" name="bypassWater" value={form.bypassWater} onChange={onChange} placeholder="예: 100" />
+            <TextInput label="물온도 ℃" name="temperature" value={form.temperature} onChange={onChange} placeholder="예: 92" />
+            <TextInput label="추출시간" name="brewTime" value={form.brewTime} onChange={onChange} placeholder="예: 2:40" />
           </div>
 
           <div className="grid">
@@ -1068,6 +1129,178 @@ function BrewLogTab({
         </form>
       )}
     </section>
+  )
+}
+
+function RecipeTab({
+  form,
+  recipes,
+  drippers,
+  filters,
+  grinders,
+  onChange,
+  onPourChange,
+  onAddPour,
+  onRemovePour,
+  onSubmit,
+  onDelete,
+}) {
+  return (
+    <section className="card">
+      <div className="section-header">
+        <div>
+          <h2>레시피 등록</h2>
+          <p className="section-description">
+            자주 쓰는 기준 레시피를 저장합니다. 기준 그라인더와 기준 클릭수는 선택값으로 둡니다.
+          </p>
+        </div>
+
+        <span className="count-badge">{recipes.length}개</span>
+      </div>
+
+      <form className="form recipe-form" onSubmit={onSubmit}>
+        <label>
+          레시피 이름
+          <input
+            name="name"
+            value={form.name}
+            onChange={onChange}
+            placeholder="예: 아이스 V60 22g 기본"
+          />
+        </label>
+
+        <label>
+          추출 방식
+          <select name="method" value={form.method} onChange={onChange}>
+            <option value="hot">핫</option>
+            <option value="ice">아이스</option>
+          </select>
+        </label>
+
+        <div className="grid">
+          <EquipmentSelect label="드리퍼" name="dripperId" value={form.dripperId} items={drippers} onChange={onChange} />
+          <EquipmentSelect label="필터" name="filterId" value={form.filterId} items={filters} onChange={onChange} />
+          <EquipmentSelect label="기준 그라인더" name="grinderId" value={form.grinderId} items={grinders} onChange={onChange} />
+
+          <TextInput label="기준 클릭수" name="grindClicks" value={form.grindClicks} onChange={onChange} placeholder="예: 30" />
+          <TextInput label="원두량 g" name="dose" value={form.dose} onChange={onChange} placeholder="예: 22" />
+          <TextInput label="물량 g" name="water" value={form.water} onChange={onChange} placeholder="예: 220" />
+          <TextInput label="가수량 g" name="bypassWater" value={form.bypassWater} onChange={onChange} placeholder="예: 100" />
+          <TextInput label="물온도 ℃" name="temperature" value={form.temperature} onChange={onChange} placeholder="예: 93" />
+          <TextInput label="목표 추출시간" name="targetTime" value={form.targetTime} onChange={onChange} placeholder="예: 2:40~3:00" />
+        </div>
+
+        <section className="blend-card">
+          <div className="blend-header">
+            <h3>푸어링 단계</h3>
+            <button type="button" className="secondary-button" onClick={onAddPour}>
+              단계 추가
+            </button>
+          </div>
+
+          <div className="pour-list">
+            {form.pours.map((pour, index) => (
+              <div className="pour-row" key={index}>
+                <TextInput label={`${index + 1}단계 시간`} name="time" value={pour.time} onChange={(event) => onPourChange(index, event)} placeholder="예: 0:00" />
+                <TextInput label="누적 물량 g" name="water" value={pour.water} onChange={(event) => onPourChange(index, event)} placeholder="예: 60" />
+                <TextInput label="메모" name="memo" value={pour.memo} onChange={(event) => onPourChange(index, event)} placeholder="예: 블루밍" />
+
+                <button
+                  type="button"
+                  className="remove-button ratio-remove-button"
+                  onClick={() => onRemovePour(index)}
+                  disabled={form.pours.length === 1}
+                >
+                  삭제
+                </button>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <label>
+          레시피 메모
+          <textarea
+            name="memo"
+            value={form.memo}
+            onChange={onChange}
+            placeholder="예: 쓴맛이 나면 클릭수를 굵게, 산미가 약하면 온도 유지"
+          />
+        </label>
+
+        <button type="submit" className="submit-button">
+          레시피 저장
+        </button>
+      </form>
+
+      <section className="recipe-list-section">
+        <h3>저장된 레시피</h3>
+
+        {recipes.length === 0 ? (
+          <p className="empty">아직 저장된 레시피가 없습니다.</p>
+        ) : (
+          <div className="bean-list">
+            {recipes.map((recipe) => (
+              <article className="bean-card" key={recipe.id}>
+                <div className="bean-card-header">
+                  <div>
+                    <span className="bean-type blend">
+                      {recipe.method === 'hot' ? '핫' : '아이스'}
+                    </span>
+                    <h3>{recipe.name}</h3>
+                  </div>
+
+                  <button type="button" className="remove-button" onClick={() => onDelete(recipe.id)}>
+                    삭제
+                  </button>
+                </div>
+
+                <div className="bean-info">
+                  <InfoRow label="장비" value={`${recipe.dripperName || '-'} / ${recipe.filterName || '-'} / ${recipe.grinderName || '-'}`} />
+                  <InfoRow label="기준 클릭수" value={recipe.grindClicks} />
+                  <InfoRow label="원두량" value={recipe.dose ? `${recipe.dose}g` : ''} />
+                  <InfoRow label="물량" value={recipe.water ? `${recipe.water}g` : ''} />
+                  <InfoRow label="가수량" value={recipe.bypassWater ? `${recipe.bypassWater}g` : ''} />
+                  <InfoRow label="물온도" value={recipe.temperature ? `${recipe.temperature}℃` : ''} />
+                  <InfoRow label="목표 추출시간" value={recipe.targetTime} />
+
+                  <PourSummary pours={recipe.pours} />
+
+                  <InfoRow label="메모" value={recipe.memo} />
+                </div>
+
+                <small className="created-at">등록일: {recipe.createdAt}</small>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+    </section>
+  )
+}
+
+function EquipmentSelect({ label, name, value, items, onChange }) {
+  return (
+    <label>
+      {label}
+      <select name={name} value={value} onChange={onChange}>
+        <option value="">선택 안 함</option>
+        {items.map((equipment) => (
+          <option key={equipment.id} value={equipment.id}>
+            {equipment.name}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
+function TextInput({ label, name, value, onChange, placeholder }) {
+  return (
+    <label>
+      {label}
+      <input name={name} value={value} onChange={onChange} placeholder={placeholder} />
+    </label>
   )
 }
 
@@ -1185,6 +1418,25 @@ function RatioSummary({ title, items }) {
       <strong>{title}: </strong>
       {filteredItems.map((item) => `${item.name || '-'} ${item.ratio || 0}%`).join(', ')}
     </p>
+  )
+}
+
+function PourSummary({ pours }) {
+  if (!pours || pours.length === 0) {
+    return <InfoRow label="푸어링" value="" />
+  }
+
+  return (
+    <div className="pour-summary">
+      <strong>푸어링:</strong>
+      <ol>
+        {pours.map((pour, index) => (
+          <li key={index}>
+            {pour.time || '-'} / {pour.water || '-'}g / {pour.memo || '-'}
+          </li>
+        ))}
+      </ol>
+    </div>
   )
 }
 

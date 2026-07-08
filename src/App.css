@@ -359,3 +359,47 @@ textarea {
     flex-direction: column;
   }
 }
+
+.recipe-form {
+  margin-bottom: 28px;
+}
+
+.recipe-list-section {
+  margin-top: 28px;
+}
+
+.recipe-list-section h3 {
+  margin-top: 0;
+}
+
+.pour-list {
+  display: grid;
+  gap: 12px;
+}
+
+.pour-row {
+  display: grid;
+  grid-template-columns: 140px 140px 1fr 80px;
+  gap: 10px;
+  align-items: end;
+}
+
+.pour-summary {
+  display: grid;
+  gap: 6px;
+}
+
+.pour-summary ol {
+  margin: 0;
+  padding-left: 22px;
+}
+
+.pour-summary li {
+  margin: 4px 0;
+}
+
+@media (max-width: 720px) {
+  .pour-row {
+    grid-template-columns: 1fr;
+  }
+}
