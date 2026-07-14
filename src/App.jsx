@@ -99,6 +99,21 @@ function loadFromStorage(key, fallbackValue) {
   }
 }
 
+function formatTimeInput(value) {
+  const digitsOnly = value.replace(/\D/g, '')
+
+  if (digitsOnly.length === 0) {
+    return ''
+  }
+
+  if (digitsOnly.length < 4) {
+    return digitsOnly
+  }
+
+  const fourDigits = digitsOnly.slice(0, 4)
+  return `${fourDigits.slice(0, 2)}:${fourDigits.slice(2, 4)}`
+}
+
 function App() {
   const [activeTab, setActiveTab] = useState('beans')
   const [beanType, setBeanType] = useState('single')
@@ -141,27 +156,6 @@ function App() {
     const { name, value } = event.target
     setSingleBean({ ...singleBean, [name]: value })
   }
-const applyRecipeToBrewForm = (recipeId) => {
-  const selectedRecipe = recipes.find((recipe) => recipe.id === recipeId)
-
-  if (!selectedRecipe) {
-    return
-  }
-
-  setBrewForm({
-    ...brewForm,
-    method: selectedRecipe.method,
-    dripperId: selectedRecipe.dripperId,
-    filterId: selectedRecipe.filterId,
-    grinderId: selectedRecipe.grinderId,
-    grindClicks: selectedRecipe.grindClicks,
-    dose: selectedRecipe.dose,
-    water: selectedRecipe.water,
-    bypassWater: selectedRecipe.bypassWater,
-    temperature: selectedRecipe.temperature,
-  })
-}
-
 
   const handleBlendFieldChange = (event) => {
     const { name, value } = event.target
@@ -212,7 +206,7 @@ const applyRecipeToBrewForm = (recipeId) => {
 
     if (beanType === 'single') {
       if (!singleBean.name.trim()) {
-        alert('원두 이름을 입력해줘.')
+        alert('원두 이름을 입력해주세요.')
         return
       }
 
@@ -229,7 +223,7 @@ const applyRecipeToBrewForm = (recipeId) => {
     }
 
     if (!blendBean.name.trim()) {
-      alert('블렌드 이름을 입력해줘.')
+      alert('블렌드 이름을 입력해주세요.')
       return
     }
 
@@ -249,14 +243,14 @@ const applyRecipeToBrewForm = (recipeId) => {
   }
 
   const deleteBean = (beanId) => {
-    const isConfirmed = window.confirm('이 원두를 삭제할까?')
+    const isConfirmed = window.confirm('이 원두를 삭제할까요?')
     if (!isConfirmed) return
 
     setOwnedBeans(ownedBeans.filter((bean) => bean.id !== beanId))
   }
 
   const clearAllBeans = () => {
-    const isConfirmed = window.confirm('등록된 원두를 전부 삭제할까?')
+    const isConfirmed = window.confirm('등록된 원두를 전부 삭제할까요?')
     if (!isConfirmed) return
 
     setOwnedBeans([])
@@ -271,7 +265,7 @@ const applyRecipeToBrewForm = (recipeId) => {
     event.preventDefault()
 
     if (!equipmentForm.name.trim()) {
-      alert('장비 이름을 입력해줘.')
+      alert('장비 이름을 입력해주세요.')
       return
     }
 
@@ -286,7 +280,7 @@ const applyRecipeToBrewForm = (recipeId) => {
   }
 
   const deleteEquipment = (equipmentId) => {
-    const isConfirmed = window.confirm('이 장비를 삭제할까?')
+    const isConfirmed = window.confirm('이 장비를 삭제할까요?')
     if (!isConfirmed) return
 
     setEquipments(equipments.filter((equipment) => equipment.id !== equipmentId))
@@ -298,7 +292,34 @@ const applyRecipeToBrewForm = (recipeId) => {
 
   const handleBrewChange = (event) => {
     const { name, value } = event.target
+
+    if (name === 'brewTime') {
+      setBrewForm({ ...brewForm, [name]: formatTimeInput(value) })
+      return
+    }
+
     setBrewForm({ ...brewForm, [name]: value })
+  }
+
+  const applyRecipeToBrewForm = (recipeId) => {
+    const selectedRecipe = recipes.find((recipe) => recipe.id === recipeId)
+
+    if (!selectedRecipe) {
+      return
+    }
+
+    setBrewForm({
+      ...brewForm,
+      method: selectedRecipe.method,
+      dripperId: selectedRecipe.dripperId,
+      filterId: selectedRecipe.filterId,
+      grinderId: selectedRecipe.grinderId,
+      grindClicks: selectedRecipe.grindClicks,
+      dose: selectedRecipe.dose,
+      water: selectedRecipe.water,
+      bypassWater: selectedRecipe.bypassWater,
+      temperature: selectedRecipe.temperature,
+    })
   }
 
   const handleSaveBrewLog = (event) => {
@@ -310,7 +331,7 @@ const applyRecipeToBrewForm = (recipeId) => {
     const selectedGrinder = equipments.find((equipment) => equipment.id === brewForm.grinderId)
 
     if (!selectedBean) {
-      alert('원두를 선택해줘.')
+      alert('원두를 선택해주세요.')
       return
     }
 
@@ -355,7 +376,7 @@ const applyRecipeToBrewForm = (recipeId) => {
   }
 
   const deleteBrewLog = (logId) => {
-    const isConfirmed = window.confirm('이 추출 기록을 삭제할까?')
+    const isConfirmed = window.confirm('이 추출 기록을 삭제할까요?')
     if (!isConfirmed) return
 
     setBrewLogs(brewLogs.filter((log) => log.id !== logId))
@@ -363,6 +384,12 @@ const applyRecipeToBrewForm = (recipeId) => {
 
   const handleRecipeChange = (event) => {
     const { name, value } = event.target
+
+    if (name === 'targetTime') {
+      setRecipeForm({ ...recipeForm, [name]: formatTimeInput(value) })
+      return
+    }
+
     setRecipeForm({ ...recipeForm, [name]: value })
   }
 
@@ -372,7 +399,7 @@ const applyRecipeToBrewForm = (recipeId) => {
 
     nextPours[index] = {
       ...nextPours[index],
-      [name]: value,
+      [name]: name === 'time' ? formatTimeInput(value) : value,
     }
 
     setRecipeForm({
@@ -401,7 +428,7 @@ const applyRecipeToBrewForm = (recipeId) => {
     event.preventDefault()
 
     if (!recipeForm.name.trim()) {
-      alert('레시피 이름을 입력해줘.')
+      alert('레시피 이름을 입력해주세요.')
       return
     }
 
@@ -443,7 +470,7 @@ const applyRecipeToBrewForm = (recipeId) => {
   }
 
   const deleteRecipe = (recipeId) => {
-    const isConfirmed = window.confirm('이 레시피를 삭제할까?')
+    const isConfirmed = window.confirm('이 레시피를 삭제할까요?')
     if (!isConfirmed) return
 
     setRecipes(recipes.filter((recipe) => recipe.id !== recipeId))
@@ -462,7 +489,7 @@ const applyRecipeToBrewForm = (recipeId) => {
         </TabButton>
 
         <TabButton active={activeTab === 'ownedBeans'} onClick={() => setActiveTab('ownedBeans')}>
-          2. 보유 원두
+          2. 원두 목록
         </TabButton>
 
         <TabButton active={activeTab === 'equipment'} onClick={() => setActiveTab('equipment')}>
@@ -474,11 +501,11 @@ const applyRecipeToBrewForm = (recipeId) => {
         </TabButton>
 
         <TabButton active={activeTab === 'recipe'} onClick={() => setActiveTab('recipe')}>
-          5. 레시피 등록
+          5. 레시피
         </TabButton>
 
         <TabButton active={activeTab === 'logs'} onClick={() => setActiveTab('logs')}>
-          6. 로그 확인
+          6. 기록 보기
         </TabButton>
       </nav>
 
@@ -545,16 +572,16 @@ const applyRecipeToBrewForm = (recipeId) => {
 
       {activeTab === 'brew' && (
         <BrewLogTab
-  form={brewForm}
-  beans={ownedBeans}
-  recipes={recipes}
-  drippers={getEquipmentsByType('dripper')}
-  filters={getEquipmentsByType('filter')}
-  grinders={getEquipmentsByType('grinder')}
-  onChange={handleBrewChange}
-  onApplyRecipe={applyRecipeToBrewForm}
-  onSubmit={handleSaveBrewLog}
-/>
+          form={brewForm}
+          beans={ownedBeans}
+          recipes={recipes}
+          drippers={getEquipmentsByType('dripper')}
+          filters={getEquipmentsByType('filter')}
+          grinders={getEquipmentsByType('grinder')}
+          onChange={handleBrewChange}
+          onApplyRecipe={applyRecipeToBrewForm}
+          onSubmit={handleSaveBrewLog}
+        />
       )}
 
       {activeTab === 'recipe' && (
@@ -592,7 +619,7 @@ function SingleBeanForm({ bean, onChange }) {
   return (
     <>
       <label>
-        이름
+        원두 이름
         <input
           name="name"
           value={bean.name}
@@ -603,17 +630,17 @@ function SingleBeanForm({ bean, onChange }) {
 
       <div className="grid">
         <label>
-          Region
+          지역
           <input
             name="region"
             value={bean.region}
             onChange={onChange}
-            placeholder="예: Guji, Yirgacheffe"
+            placeholder="예: 구지, 예가체프"
           />
         </label>
 
         <label>
-          Altitude
+          고도
           <input
             name="altitude"
             value={bean.altitude}
@@ -623,22 +650,22 @@ function SingleBeanForm({ bean, onChange }) {
         </label>
 
         <label>
-          Variety
+          품종
           <input
             name="variety"
             value={bean.variety}
             onChange={onChange}
-            placeholder="예: Heirloom, Bourbon"
+            placeholder="예: 헤어룸, 버번"
           />
         </label>
 
         <label>
-          Process
+          가공방식
           <input
             name="process"
             value={bean.process}
             onChange={onChange}
-            placeholder="예: Washed, Natural"
+            placeholder="예: 워시드, 내추럴"
           />
         </label>
 
@@ -648,12 +675,12 @@ function SingleBeanForm({ bean, onChange }) {
             name="origin"
             value={bean.origin}
             onChange={onChange}
-            placeholder="예: Ethiopia"
+            placeholder="예: 에티오피아"
           />
         </label>
 
         <label>
-          제조일 / 로스팅일
+          로스팅일
           <input
             type="date"
             name="roastDate"
@@ -664,7 +691,7 @@ function SingleBeanForm({ bean, onChange }) {
       </div>
 
       <label>
-        Cupping Note
+        컵노트
         <textarea
           name="cuppingNote"
           value={bean.cuppingNote}
@@ -698,7 +725,7 @@ function BlendBeanForm({
 
       <div className="grid">
         <label>
-          Altitude
+          고도
           <input
             name="altitude"
             value={bean.altitude}
@@ -708,7 +735,7 @@ function BlendBeanForm({
         </label>
 
         <label>
-          제조일 / 로스팅일
+          로스팅일
           <input
             type="date"
             name="roastDate"
@@ -719,7 +746,7 @@ function BlendBeanForm({
       </div>
 
       <label>
-        Cupping Note
+        컵노트
         <textarea
           name="cuppingNote"
           value={bean.cuppingNote}
@@ -729,7 +756,7 @@ function BlendBeanForm({
       </label>
 
       <RatioInputGroup
-        title="구성 원두 비율"
+        title="구성 원두"
         groupName="components"
         itemLabel="구성 원두 이름"
         placeholder="예: 봄베"
@@ -741,10 +768,10 @@ function BlendBeanForm({
       />
 
       <RatioInputGroup
-        title="Variety 비율"
+        title="품종 비율"
         groupName="varieties"
-        itemLabel="Variety"
-        placeholder="예: Bourbon"
+        itemLabel="품종"
+        placeholder="예: 버번"
         items={bean.varieties}
         onChange={onRatioItemChange}
         onAdd={onAddRatioItem}
@@ -753,10 +780,10 @@ function BlendBeanForm({
       />
 
       <RatioInputGroup
-        title="Process 비율"
+        title="가공방식 비율"
         groupName="processes"
-        itemLabel="Process"
-        placeholder="예: Natural"
+        itemLabel="가공방식"
+        placeholder="예: 내추럴"
         items={bean.processes}
         onChange={onRatioItemChange}
         onAdd={onAddRatioItem}
@@ -768,7 +795,7 @@ function BlendBeanForm({
         title="원산지 비율"
         groupName="origins"
         itemLabel="원산지"
-        placeholder="예: Ethiopia"
+        placeholder="예: 에티오피아"
         items={bean.origins}
         onChange={onRatioItemChange}
         onAdd={onAddRatioItem}
@@ -849,9 +876,9 @@ function OwnedBeansTab({ beans, onDelete, onClearAll }) {
     <section className="card">
       <div className="section-header">
         <div>
-          <h2>보유 원두</h2>
+          <h2>원두 목록</h2>
           <p className="section-description">
-            등록한 싱글 원두와 블렌드를 확인하는 화면입니다.
+            등록한 싱글 원두와 블렌드를 확인합니다.
           </p>
         </div>
 
@@ -868,7 +895,7 @@ function OwnedBeansTab({ beans, onDelete, onClearAll }) {
 
       {beans.length === 0 ? (
         <p className="empty">
-          아직 등록된 원두가 없습니다. 1번 탭에서 원두를 먼저 등록해줘.
+          아직 등록된 원두가 없습니다. 1번 탭에서 원두를 먼저 등록해주세요.
         </p>
       ) : (
         <div className="bean-list">
@@ -906,12 +933,12 @@ function SingleBeanCard({ bean }) {
   return (
     <div className="bean-info">
       <InfoRow label="원산지" value={bean.origin} />
-      <InfoRow label="Region" value={bean.region} />
-      <InfoRow label="Altitude" value={bean.altitude} />
-      <InfoRow label="Variety" value={bean.variety} />
-      <InfoRow label="Process" value={bean.process} />
-      <InfoRow label="제조일 / 로스팅일" value={bean.roastDate} />
-      <InfoRow label="Cupping Note" value={bean.cuppingNote} />
+      <InfoRow label="지역" value={bean.region} />
+      <InfoRow label="고도" value={bean.altitude} />
+      <InfoRow label="품종" value={bean.variety} />
+      <InfoRow label="가공방식" value={bean.process} />
+      <InfoRow label="로스팅일" value={bean.roastDate} />
+      <InfoRow label="컵노트" value={bean.cuppingNote} />
     </div>
   )
 }
@@ -919,13 +946,13 @@ function SingleBeanCard({ bean }) {
 function BlendBeanCard({ bean }) {
   return (
     <div className="bean-info">
-      <InfoRow label="Altitude" value={bean.altitude} />
-      <InfoRow label="제조일 / 로스팅일" value={bean.roastDate} />
-      <InfoRow label="Cupping Note" value={bean.cuppingNote} />
+      <InfoRow label="고도" value={bean.altitude} />
+      <InfoRow label="로스팅일" value={bean.roastDate} />
+      <InfoRow label="컵노트" value={bean.cuppingNote} />
 
       <RatioSummary title="구성 원두" items={bean.components} />
-      <RatioSummary title="Variety" items={bean.varieties} />
-      <RatioSummary title="Process" items={bean.processes} />
+      <RatioSummary title="품종" items={bean.varieties} />
+      <RatioSummary title="가공방식" items={bean.processes} />
       <RatioSummary title="원산지" items={bean.origins} />
     </div>
   )
@@ -965,7 +992,7 @@ function EquipmentTab({ equipmentForm, equipments, onChange, onSubmit, onDelete 
             name="name"
             value={equipmentForm.name}
             onChange={onChange}
-            placeholder="예: 하리오 V60 02, 코만단테 C40"
+            placeholder="예: 하리오 V60 02, CAFEC Abaca, 페모북 A2"
           />
         </label>
 
@@ -1043,7 +1070,7 @@ function BrewLogTab({
       </div>
 
       {beans.length === 0 ? (
-        <p className="empty">보유 원두가 없습니다. 먼저 1번 탭에서 원두를 등록해줘.</p>
+        <p className="empty">보유 원두가 없습니다. 먼저 1번 탭에서 원두를 등록해주세요.</p>
       ) : (
         <form className="form" onSubmit={onSubmit}>
           <label>
@@ -1088,10 +1115,10 @@ function BrewLogTab({
 
             <TextInput label="클릭수" name="grindClicks" value={form.grindClicks} onChange={onChange} placeholder="예: 22" />
             <TextInput label="원두량 g" name="dose" value={form.dose} onChange={onChange} placeholder="예: 30" />
-            <TextInput label="물량 g" name="water" value={form.water} onChange={onChange} placeholder="예: 300" />
+            <TextInput label="추출수 g" name="water" value={form.water} onChange={onChange} placeholder="예: 300" />
             <TextInput label="가수량 g" name="bypassWater" value={form.bypassWater} onChange={onChange} placeholder="예: 100" />
-            <TextInput label="물온도 ℃" name="temperature" value={form.temperature} onChange={onChange} placeholder="예: 92" />
-            <TextInput label="추출시간" name="brewTime" value={form.brewTime} onChange={onChange} placeholder="예: 2:40" />
+            <TextInput label="물 온도 ℃" name="temperature" value={form.temperature} onChange={onChange} placeholder="예: 92" />
+            <TextInput label="실제 시간" name="brewTime" value={form.brewTime} onChange={onChange} placeholder="예: 0300 → 03:00" />
           </div>
 
           <div className="grid">
@@ -1149,7 +1176,7 @@ function RecipeTab({
     <section className="card">
       <div className="section-header">
         <div>
-          <h2>레시피 등록</h2>
+          <h2>레시피</h2>
           <p className="section-description">
             자주 쓰는 기준 레시피를 저장합니다. 기준 그라인더와 기준 클릭수는 선택값으로 둡니다.
           </p>
@@ -1184,10 +1211,10 @@ function RecipeTab({
 
           <TextInput label="기준 클릭수" name="grindClicks" value={form.grindClicks} onChange={onChange} placeholder="예: 30" />
           <TextInput label="원두량 g" name="dose" value={form.dose} onChange={onChange} placeholder="예: 22" />
-          <TextInput label="물량 g" name="water" value={form.water} onChange={onChange} placeholder="예: 220" />
+          <TextInput label="추출수 g" name="water" value={form.water} onChange={onChange} placeholder="예: 220" />
           <TextInput label="가수량 g" name="bypassWater" value={form.bypassWater} onChange={onChange} placeholder="예: 100" />
-          <TextInput label="물온도 ℃" name="temperature" value={form.temperature} onChange={onChange} placeholder="예: 93" />
-          <TextInput label="목표 추출시간" name="targetTime" value={form.targetTime} onChange={onChange} placeholder="예: 2:40~3:00" />
+          <TextInput label="물 온도 ℃" name="temperature" value={form.temperature} onChange={onChange} placeholder="예: 93" />
+          <TextInput label="목표 시간" name="targetTime" value={form.targetTime} onChange={onChange} placeholder="예: 0300 → 03:00" />
         </div>
 
         <section className="blend-card">
@@ -1201,8 +1228,8 @@ function RecipeTab({
           <div className="pour-list">
             {form.pours.map((pour, index) => (
               <div className="pour-row" key={index}>
-                <TextInput label={`${index + 1}단계 시간`} name="time" value={pour.time} onChange={(event) => onPourChange(index, event)} placeholder="예: 0:00" />
-                <TextInput label="누적 물량 g" name="water" value={pour.water} onChange={(event) => onPourChange(index, event)} placeholder="예: 60" />
+                <TextInput label={`${index + 1}단계 시간`} name="time" value={pour.time} onChange={(event) => onPourChange(index, event)} placeholder="예: 0030 → 00:30" />
+                <TextInput label="누적 추출수 g" name="water" value={pour.water} onChange={(event) => onPourChange(index, event)} placeholder="예: 60" />
                 <TextInput label="메모" name="memo" value={pour.memo} onChange={(event) => onPourChange(index, event)} placeholder="예: 블루밍" />
 
                 <button
@@ -1259,10 +1286,10 @@ function RecipeTab({
                   <InfoRow label="장비" value={`${recipe.dripperName || '-'} / ${recipe.filterName || '-'} / ${recipe.grinderName || '-'}`} />
                   <InfoRow label="기준 클릭수" value={recipe.grindClicks} />
                   <InfoRow label="원두량" value={recipe.dose ? `${recipe.dose}g` : ''} />
-                  <InfoRow label="물량" value={recipe.water ? `${recipe.water}g` : ''} />
+                  <InfoRow label="추출수" value={recipe.water ? `${recipe.water}g` : ''} />
                   <InfoRow label="가수량" value={recipe.bypassWater ? `${recipe.bypassWater}g` : ''} />
-                  <InfoRow label="물온도" value={recipe.temperature ? `${recipe.temperature}℃` : ''} />
-                  <InfoRow label="목표 추출시간" value={recipe.targetTime} />
+                  <InfoRow label="물 온도" value={recipe.temperature ? `${recipe.temperature}℃` : ''} />
+                  <InfoRow label="목표 시간" value={recipe.targetTime} />
 
                   <PourSummary pours={recipe.pours} />
 
@@ -1339,9 +1366,9 @@ function LogsTab({ logs, onDelete }) {
     <section className="card">
       <div className="section-header">
         <div>
-          <h2>로그 확인</h2>
+          <h2>기록 보기</h2>
           <p className="section-description">
-            저장된 추출 기록을 확인하는 화면입니다.
+            저장한 추출 기록을 확인합니다.
           </p>
         </div>
 
@@ -1371,13 +1398,13 @@ function LogsTab({ logs, onDelete }) {
                 <InfoRow label="장비" value={`${log.dripperName || '-'} / ${log.filterName || '-'} / ${log.grinderName || '-'}`} />
                 <InfoRow label="클릭수" value={log.grindClicks} />
                 <InfoRow label="원두량" value={log.dose ? `${log.dose}g` : ''} />
-                <InfoRow label="물량" value={log.water ? `${log.water}g` : ''} />
+                <InfoRow label="추출수" value={log.water ? `${log.water}g` : ''} />
                 <InfoRow label="가수량" value={log.bypassWater ? `${log.bypassWater}g` : ''} />
-                <InfoRow label="물온도" value={log.temperature ? `${log.temperature}℃` : ''} />
-                <InfoRow label="추출시간" value={log.brewTime} />
+                <InfoRow label="물 온도" value={log.temperature ? `${log.temperature}℃` : ''} />
+                <InfoRow label="실제 시간" value={log.brewTime} />
                 <InfoRow label="별점" value={'★'.repeat(Number(log.rating))} />
                 <InfoRow
-                  label="맛 수치"
+                  label="맛 평가"
                   value={`쓴맛 ${log.bitterness} / 산미 ${log.acidity} / 단맛 ${log.sweetness} / 바디 ${log.body} / 향 ${log.aroma}`}
                 />
                 <InfoRow label="맛 메모" value={log.tasteMemo} />
