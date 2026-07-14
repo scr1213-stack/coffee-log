@@ -123,6 +123,9 @@ function App() {
   const [brewForm, setBrewForm] = useState(emptyBrewForm)
   const [recipeForm, setRecipeForm] = useState(emptyRecipeForm)
 
+  const [editingBrewLogId, setEditingBrewLogId] = useState(null)
+  const [editingRecipeId, setEditingRecipeId] = useState(null)
+
   const [ownedBeans, setOwnedBeans] = useState(() =>
     loadFromStorage(BEANS_STORAGE_KEY, []),
   )
@@ -322,23 +325,17 @@ function App() {
     })
   }
 
-  const handleSaveBrewLog = (event) => {
-    event.preventDefault()
-
+  const buildBrewLogData = () => {
     const selectedBean = ownedBeans.find((bean) => bean.id === brewForm.beanId)
     const selectedDripper = equipments.find((equipment) => equipment.id === brewForm.dripperId)
     const selectedFilter = equipments.find((equipment) => equipment.id === brewForm.filterId)
     const selectedGrinder = equipments.find((equipment) => equipment.id === brewForm.grinderId)
 
     if (!selectedBean) {
-      alert('원두를 선택해주세요.')
-      return
+      return null
     }
 
-    const newBrewLog = {
-      id: crypto.randomUUID(),
-      createdAt: new Date().toLocaleString(),
-
+    return {
       beanId: selectedBean.id,
       beanName: selectedBean.name,
       beanType: selectedBean.type,
@@ -369,10 +366,78 @@ function App() {
       tasteMemo: brewForm.tasteMemo,
       nextAdjustment: brewForm.nextAdjustment,
     }
+  }
+
+  const handleSaveBrewLog = (event) => {
+    event.preventDefault()
+
+    const brewLogData = buildBrewLogData()
+
+    if (!brewLogData) {
+      alert('원두를 선택해주세요.')
+      return
+    }
+
+    if (editingBrewLogId) {
+      setBrewLogs(
+        brewLogs.map((log) =>
+          log.id === editingBrewLogId
+            ? {
+                ...log,
+                ...brewLogData,
+                updatedAt: new Date().toLocaleString(),
+              }
+            : log,
+        ),
+      )
+
+      setEditingBrewLogId(null)
+      setBrewForm(emptyBrewForm)
+      setActiveTab('logs')
+      return
+    }
+
+    const newBrewLog = {
+      id: crypto.randomUUID(),
+      createdAt: new Date().toLocaleString(),
+      ...brewLogData,
+    }
 
     setBrewLogs([newBrewLog, ...brewLogs])
     setBrewForm(emptyBrewForm)
     setActiveTab('logs')
+  }
+
+  const startEditBrewLog = (log) => {
+    setBrewForm({
+      beanId: log.beanId,
+      method: log.method,
+      dripperId: log.dripperId,
+      filterId: log.filterId,
+      grinderId: log.grinderId,
+      grindClicks: log.grindClicks,
+      dose: log.dose,
+      water: log.water,
+      bypassWater: log.bypassWater,
+      temperature: log.temperature,
+      brewTime: log.brewTime,
+      rating: log.rating,
+      bitterness: log.bitterness,
+      acidity: log.acidity,
+      sweetness: log.sweetness,
+      body: log.body,
+      aroma: log.aroma,
+      tasteMemo: log.tasteMemo,
+      nextAdjustment: log.nextAdjustment,
+    })
+
+    setEditingBrewLogId(log.id)
+    setActiveTab('brew')
+  }
+
+  const cancelEditBrewLog = () => {
+    setEditingBrewLogId(null)
+    setBrewForm(emptyBrewForm)
   }
 
   const deleteBrewLog = (logId) => {
@@ -424,14 +489,7 @@ function App() {
     })
   }
 
-  const handleSaveRecipe = (event) => {
-    event.preventDefault()
-
-    if (!recipeForm.name.trim()) {
-      alert('레시피 이름을 입력해주세요.')
-      return
-    }
-
+  const buildRecipeData = () => {
     const selectedDripper = equipments.find((equipment) => equipment.id === recipeForm.dripperId)
     const selectedFilter = equipments.find((equipment) => equipment.id === recipeForm.filterId)
     const selectedGrinder = equipments.find((equipment) => equipment.id === recipeForm.grinderId)
@@ -440,10 +498,7 @@ function App() {
       (pour) => pour.time.trim() !== '' || pour.water.trim() !== '' || pour.memo.trim() !== '',
     )
 
-    const newRecipe = {
-      id: crypto.randomUUID(),
-      createdAt: new Date().toLocaleString(),
-
+    return {
       name: recipeForm.name,
       method: recipeForm.method,
 
@@ -464,8 +519,69 @@ function App() {
       pours: cleanedPours,
       memo: recipeForm.memo,
     }
+  }
+
+  const handleSaveRecipe = (event) => {
+    event.preventDefault()
+
+    if (!recipeForm.name.trim()) {
+      alert('레시피 이름을 입력해주세요.')
+      return
+    }
+
+    const recipeData = buildRecipeData()
+
+    if (editingRecipeId) {
+      setRecipes(
+        recipes.map((recipe) =>
+          recipe.id === editingRecipeId
+            ? {
+                ...recipe,
+                ...recipeData,
+                updatedAt: new Date().toLocaleString(),
+              }
+            : recipe,
+        ),
+      )
+
+      setEditingRecipeId(null)
+      setRecipeForm(emptyRecipeForm)
+      return
+    }
+
+    const newRecipe = {
+      id: crypto.randomUUID(),
+      createdAt: new Date().toLocaleString(),
+      ...recipeData,
+    }
 
     setRecipes([newRecipe, ...recipes])
+    setRecipeForm(emptyRecipeForm)
+  }
+
+  const startEditRecipe = (recipe) => {
+    setRecipeForm({
+      name: recipe.name,
+      method: recipe.method,
+      dripperId: recipe.dripperId,
+      filterId: recipe.filterId,
+      grinderId: recipe.grinderId,
+      grindClicks: recipe.grindClicks,
+      dose: recipe.dose,
+      water: recipe.water,
+      bypassWater: recipe.bypassWater,
+      temperature: recipe.temperature,
+      targetTime: recipe.targetTime,
+      pours: recipe.pours && recipe.pours.length > 0 ? recipe.pours : [{ ...emptyPourStep }],
+      memo: recipe.memo,
+    })
+
+    setEditingRecipeId(recipe.id)
+    setActiveTab('recipe')
+  }
+
+  const cancelEditRecipe = () => {
+    setEditingRecipeId(null)
     setRecipeForm(emptyRecipeForm)
   }
 
@@ -578,9 +694,11 @@ function App() {
           drippers={getEquipmentsByType('dripper')}
           filters={getEquipmentsByType('filter')}
           grinders={getEquipmentsByType('grinder')}
+          isEditing={Boolean(editingBrewLogId)}
           onChange={handleBrewChange}
           onApplyRecipe={applyRecipeToBrewForm}
           onSubmit={handleSaveBrewLog}
+          onCancelEdit={cancelEditBrewLog}
         />
       )}
 
@@ -591,17 +709,20 @@ function App() {
           drippers={getEquipmentsByType('dripper')}
           filters={getEquipmentsByType('filter')}
           grinders={getEquipmentsByType('grinder')}
+          isEditing={Boolean(editingRecipeId)}
           onChange={handleRecipeChange}
           onPourChange={handlePourStepChange}
           onAddPour={addPourStep}
           onRemovePour={removePourStep}
           onSubmit={handleSaveRecipe}
           onDelete={deleteRecipe}
+          onEdit={startEditRecipe}
+          onCancelEdit={cancelEditRecipe}
         />
       )}
 
       {activeTab === 'logs' && (
-        <LogsTab logs={brewLogs} onDelete={deleteBrewLog} />
+        <LogsTab logs={brewLogs} onDelete={deleteBrewLog} onEdit={startEditBrewLog} />
       )}
     </main>
   )
@@ -1054,19 +1175,27 @@ function BrewLogTab({
   drippers,
   filters,
   grinders,
+  isEditing,
   onChange,
   onApplyRecipe,
   onSubmit,
+  onCancelEdit,
 }) {
   return (
     <section className="card">
       <div className="section-header">
         <div>
-          <h2>추출 기록</h2>
+          <h2>{isEditing ? '추출 기록 수정' : '추출 기록'}</h2>
           <p className="section-description">
             보유 원두와 등록 장비를 선택해서 실제 추출 결과를 기록합니다.
           </p>
         </div>
+
+        {isEditing && (
+          <button type="button" className="secondary-button" onClick={onCancelEdit}>
+            수정 취소
+          </button>
+        )}
       </div>
 
       {beans.length === 0 ? (
@@ -1151,7 +1280,7 @@ function BrewLogTab({
           </label>
 
           <button type="submit" className="submit-button">
-            추출 기록 저장
+            {isEditing ? '추출 기록 수정 저장' : '추출 기록 저장'}
           </button>
         </form>
       )}
@@ -1165,24 +1294,35 @@ function RecipeTab({
   drippers,
   filters,
   grinders,
+  isEditing,
   onChange,
   onPourChange,
   onAddPour,
   onRemovePour,
   onSubmit,
   onDelete,
+  onEdit,
+  onCancelEdit,
 }) {
   return (
     <section className="card">
       <div className="section-header">
         <div>
-          <h2>레시피</h2>
+          <h2>{isEditing ? '레시피 수정' : '레시피'}</h2>
           <p className="section-description">
             자주 쓰는 기준 레시피를 저장합니다. 기준 그라인더와 기준 클릭수는 선택값으로 둡니다.
           </p>
         </div>
 
-        <span className="count-badge">{recipes.length}개</span>
+        <div className="section-actions">
+          <span className="count-badge">{recipes.length}개</span>
+
+          {isEditing && (
+            <button type="button" className="secondary-button" onClick={onCancelEdit}>
+              수정 취소
+            </button>
+          )}
+        </div>
       </div>
 
       <form className="form recipe-form" onSubmit={onSubmit}>
@@ -1256,7 +1396,7 @@ function RecipeTab({
         </label>
 
         <button type="submit" className="submit-button">
-          레시피 저장
+          {isEditing ? '레시피 수정 저장' : '레시피 저장'}
         </button>
       </form>
 
@@ -1277,9 +1417,15 @@ function RecipeTab({
                     <h3>{recipe.name}</h3>
                   </div>
 
-                  <button type="button" className="remove-button" onClick={() => onDelete(recipe.id)}>
-                    삭제
-                  </button>
+                  <div className="section-actions">
+                    <button type="button" className="secondary-button" onClick={() => onEdit(recipe)}>
+                      수정
+                    </button>
+
+                    <button type="button" className="remove-button" onClick={() => onDelete(recipe.id)}>
+                      삭제
+                    </button>
+                  </div>
                 </div>
 
                 <div className="bean-info">
@@ -1297,6 +1443,7 @@ function RecipeTab({
                 </div>
 
                 <small className="created-at">등록일: {recipe.createdAt}</small>
+                {recipe.updatedAt && <small className="created-at">수정일: {recipe.updatedAt}</small>}
               </article>
             ))}
           </div>
@@ -1361,7 +1508,7 @@ function ScoreSelect({ label, name, value, onChange }) {
   )
 }
 
-function LogsTab({ logs, onDelete }) {
+function LogsTab({ logs, onDelete, onEdit }) {
   return (
     <section className="card">
       <div className="section-header">
@@ -1389,9 +1536,15 @@ function LogsTab({ logs, onDelete }) {
                   <h3>{log.beanName}</h3>
                 </div>
 
-                <button type="button" className="remove-button" onClick={() => onDelete(log.id)}>
-                  삭제
-                </button>
+                <div className="section-actions">
+                  <button type="button" className="secondary-button" onClick={() => onEdit(log)}>
+                    수정
+                  </button>
+
+                  <button type="button" className="remove-button" onClick={() => onDelete(log.id)}>
+                    삭제
+                  </button>
+                </div>
               </div>
 
               <div className="bean-info">
@@ -1412,6 +1565,7 @@ function LogsTab({ logs, onDelete }) {
               </div>
 
               <small className="created-at">기록일: {log.createdAt}</small>
+              {log.updatedAt && <small className="created-at">수정일: {log.updatedAt}</small>}
             </article>
           ))}
         </div>
