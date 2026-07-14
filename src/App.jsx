@@ -125,6 +125,11 @@ function App() {
 
   const [editingBrewLogId, setEditingBrewLogId] = useState(null)
   const [editingRecipeId, setEditingRecipeId] = useState(null)
+  const [logFilters, setLogFilters] = useState({
+  method: 'all',
+  beanId: 'all',
+  rating: 'all',
+})
 
   const [ownedBeans, setOwnedBeans] = useState(() =>
     loadFromStorage(BEANS_STORAGE_KEY, []),
@@ -446,6 +451,30 @@ function App() {
 
     setBrewLogs(brewLogs.filter((log) => log.id !== logId))
   }
+const handleLogFilterChange = (event) => {
+  const { name, value } = event.target
+
+  setLogFilters({
+    ...logFilters,
+    [name]: value,
+  })
+}
+
+const resetLogFilters = () => {
+  setLogFilters({
+    method: 'all',
+    beanId: 'all',
+    rating: 'all',
+  })
+}
+
+const filteredBrewLogs = brewLogs.filter((log) => {
+  const methodMatched = logFilters.method === 'all' || log.method === logFilters.method
+  const beanMatched = logFilters.beanId === 'all' || log.beanId === logFilters.beanId
+  const ratingMatched = logFilters.rating === 'all' || log.rating === logFilters.rating
+
+  return methodMatched && beanMatched && ratingMatched
+})
 
   const handleRecipeChange = (event) => {
     const { name, value } = event.target
@@ -722,8 +751,18 @@ function App() {
       )}
 
       {activeTab === 'logs' && (
-        <LogsTab logs={brewLogs} onDelete={deleteBrewLog} onEdit={startEditBrewLog} />
-      )}
+  <LogsTab
+    logs={filteredBrewLogs}
+    totalCount={brewLogs.length}
+    beans={ownedBeans}
+    filters={logFilters}
+    onFilterChange={handleLogFilterChange}
+    onResetFilters={resetLogFilters}
+    onDelete={deleteBrewLog}
+    onEdit={startEditBrewLog}
+  />
+)}
+
     </main>
   )
 }
@@ -1508,7 +1547,16 @@ function ScoreSelect({ label, name, value, onChange }) {
   )
 }
 
-function LogsTab({ logs, onDelete, onEdit }) {
+function LogsTab({
+  logs,
+  totalCount,
+  beans,
+  filters,
+  onFilterChange,
+  onResetFilters,
+  onDelete,
+  onEdit,
+}) {
   return (
     <section className="card">
       <div className="section-header">
@@ -1519,11 +1567,60 @@ function LogsTab({ logs, onDelete, onEdit }) {
           </p>
         </div>
 
-        <span className="count-badge">{logs.length}개</span>
+        <span className="count-badge">
+          {logs.length} / {totalCount}개
+        </span>
       </div>
 
-      {logs.length === 0 ? (
+      <section className="blend-card">
+        <div className="blend-header">
+          <h3>필터</h3>
+
+          <button type="button" className="secondary-button" onClick={onResetFilters}>
+            필터 초기화
+          </button>
+        </div>
+
+        <div className="grid">
+          <label>
+            추출 방식
+            <select name="method" value={filters.method} onChange={onFilterChange}>
+              <option value="all">전체</option>
+              <option value="hot">핫</option>
+              <option value="ice">아이스</option>
+            </select>
+          </label>
+
+          <label>
+            원두
+            <select name="beanId" value={filters.beanId} onChange={onFilterChange}>
+              <option value="all">전체 원두</option>
+              {beans.map((bean) => (
+                <option key={bean.id} value={bean.id}>
+                  {bean.type === 'single' ? '[싱글]' : '[블렌드]'} {bean.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label>
+            별점
+            <select name="rating" value={filters.rating} onChange={onFilterChange}>
+              <option value="all">전체 별점</option>
+              <option value="5">★★★★★</option>
+              <option value="4">★★★★☆</option>
+              <option value="3">★★★☆☆</option>
+              <option value="2">★★☆☆☆</option>
+              <option value="1">★☆☆☆☆</option>
+            </select>
+          </label>
+        </div>
+      </section>
+
+      {totalCount === 0 ? (
         <p className="empty">아직 저장된 추출 기록이 없습니다.</p>
+      ) : logs.length === 0 ? (
+        <p className="empty">조건에 맞는 추출 기록이 없습니다.</p>
       ) : (
         <div className="bean-list">
           {logs.map((log) => (
