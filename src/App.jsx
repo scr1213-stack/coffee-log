@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import './App.css'
 
+const BACKUP_APP_NAME = 'coffee-log'
+const BACKUP_VERSION = 1
 const BEANS_STORAGE_KEY = 'coffee-log-owned-beans'
 const EQUIPMENT_STORAGE_KEY = 'coffee-log-equipments'
 const BREW_LOG_STORAGE_KEY = 'coffee-log-brew-logs'
@@ -99,6 +101,38 @@ function loadFromStorage(key, fallbackValue) {
   }
 }
 
+function isValidRecordArray(value) {
+  return (
+    Array.isArray(value) &&
+    value.every(
+      (item) =>
+        item !== null &&
+        typeof item === 'object' &&
+        !Array.isArray(item) &&
+        typeof item.id === 'string' &&
+        item.id.length > 0,
+    )
+  )
+}
+
+function parseBackupFile(contents) {
+  const backup = JSON.parse(contents)
+
+  if (
+    backup?.app !== BACKUP_APP_NAME ||
+    backup?.version !== BACKUP_VERSION ||
+    !backup.data ||
+    !isValidRecordArray(backup.data.beans) ||
+    !isValidRecordArray(backup.data.equipments) ||
+    !isValidRecordArray(backup.data.recipes) ||
+    !isValidRecordArray(backup.data.brewLogs)
+  ) {
+    throw new Error('지원하지 않는 백업 파일입니다.')
+  }
+
+  return backup.data
+}
+
 function formatTimeInput(value) {
   const digitsOnly = value.replace(/\D/g, '')
 
@@ -115,6 +149,7 @@ function formatTimeInput(value) {
 }
 
 function App() {
+  const backupFileInputRef = useRef(null)
   const [activeTab, setActiveTab] = useState('beans')
   const [beanType, setBeanType] = useState('single')
   const [singleBean, setSingleBean] = useState(emptySingleBean)
@@ -621,11 +656,90 @@ const filteredBrewLogs = brewLogs.filter((log) => {
     setRecipes(recipes.filter((recipe) => recipe.id !== recipeId))
   }
 
+  const exportBackup = () => {
+    const backup = {
+      app: BACKUP_APP_NAME,
+      version: BACKUP_VERSION,
+      exportedAt: new Date().toISOString(),
+      data: {
+        beans: ownedBeans,
+        equipments,
+        recipes,
+        brewLogs,
+      },
+    }
+    const blob = new Blob([JSON.stringify(backup, null, 2)], {
+      type: 'application/json',
+    })
+    const downloadUrl = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    const date = new Date().toISOString().slice(0, 10)
+
+    link.href = downloadUrl
+    link.download = `coffee-log-backup-${date}.json`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 0)
+  }
+
+  const importBackup = async (event) => {
+    const file = event.target.files?.[0]
+
+    event.target.value = ''
+    if (!file) return
+
+    try {
+      const data = parseBackupFile(await file.text())
+      const isConfirmed = window.confirm(
+        `현재 데이터를 백업 파일로 교체할까요?\n\n원두 ${data.beans.length}개 / 장비 ${data.equipments.length}개 / 레시피 ${data.recipes.length}개 / 추출 기록 ${data.brewLogs.length}개`,
+      )
+
+      if (!isConfirmed) return
+
+      setOwnedBeans(data.beans)
+      setEquipments(data.equipments)
+      setRecipes(data.recipes)
+      setBrewLogs(data.brewLogs)
+      setEditingBrewLogId(null)
+      setEditingRecipeId(null)
+      setBrewForm(emptyBrewForm)
+      setRecipeForm(emptyRecipeForm)
+      resetLogFilters()
+      setActiveTab('ownedBeans')
+      alert('백업 데이터를 복원했습니다.')
+    } catch (error) {
+      alert(error instanceof SyntaxError ? 'JSON 형식이 올바르지 않습니다.' : error.message)
+    }
+  }
+
   return (
     <main className="app">
       <header className="app-header">
-        <h1>커피 로그</h1>
-        <p>원두, 장비, 레시피, 추출 기록을 관리하는 개인 커피 데이터베이스</p>
+        <div>
+          <h1>커피 로그</h1>
+          <p>원두, 장비, 레시피, 추출 기록을 관리하는 개인 커피 데이터베이스</p>
+        </div>
+
+        <div className="backup-actions" aria-label="데이터 백업 및 복원">
+          <button type="button" className="secondary-button" onClick={exportBackup}>
+            JSON 백업
+          </button>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={() => backupFileInputRef.current?.click()}
+          >
+            JSON 복원
+          </button>
+          <input
+            ref={backupFileInputRef}
+            className="backup-file-input"
+            type="file"
+            accept="application/json,.json"
+            onChange={importBackup}
+          />
+        </div>
       </header>
 
       <nav className="tabs">

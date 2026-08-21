@@ -16,6 +16,10 @@ body {
 }
 
 .app-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
   margin-bottom: 20px;
 }
 
@@ -27,6 +31,16 @@ body {
 .app-header p {
   margin: 8px 0 0;
   color: #725f50;
+}
+
+.backup-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+
+.backup-file-input {
+  display: none;
 }
 
 .tabs {
@@ -354,9 +368,18 @@ textarea {
   }
 
   .section-header,
+  .app-header,
   .bean-card-header,
   .small-card {
     flex-direction: column;
+  }
+
+  .backup-actions {
+    width: 100%;
+  }
+
+  .backup-actions button {
+    flex: 1;
   }
 }
 
