@@ -1,12 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
+import { createBackup, parseBackupFile } from './data/backup'
+import { useCoffeeLogData } from './hooks/useCoffeeLogData'
 import './App.css'
-
-const BACKUP_APP_NAME = 'coffee-log'
-const BACKUP_VERSION = 1
-const BEANS_STORAGE_KEY = 'coffee-log-owned-beans'
-const EQUIPMENT_STORAGE_KEY = 'coffee-log-equipments'
-const BREW_LOG_STORAGE_KEY = 'coffee-log-brew-logs'
-const RECIPE_STORAGE_KEY = 'coffee-log-recipes'
 
 const emptySingleBean = {
   type: 'single',
@@ -87,52 +82,6 @@ const emptyRecipeForm = {
   memo: '',
 }
 
-function loadFromStorage(key, fallbackValue) {
-  const savedValue = localStorage.getItem(key)
-
-  if (!savedValue) {
-    return fallbackValue
-  }
-
-  try {
-    return JSON.parse(savedValue)
-  } catch {
-    return fallbackValue
-  }
-}
-
-function isValidRecordArray(value) {
-  return (
-    Array.isArray(value) &&
-    value.every(
-      (item) =>
-        item !== null &&
-        typeof item === 'object' &&
-        !Array.isArray(item) &&
-        typeof item.id === 'string' &&
-        item.id.length > 0,
-    )
-  )
-}
-
-function parseBackupFile(contents) {
-  const backup = JSON.parse(contents)
-
-  if (
-    backup?.app !== BACKUP_APP_NAME ||
-    backup?.version !== BACKUP_VERSION ||
-    !backup.data ||
-    !isValidRecordArray(backup.data.beans) ||
-    !isValidRecordArray(backup.data.equipments) ||
-    !isValidRecordArray(backup.data.recipes) ||
-    !isValidRecordArray(backup.data.brewLogs)
-  ) {
-    throw new Error('지원하지 않는 백업 파일입니다.')
-  }
-
-  return backup.data
-}
-
 function formatTimeInput(value) {
   const digitsOnly = value.replace(/\D/g, '')
 
@@ -166,34 +115,16 @@ function App() {
   rating: 'all',
 })
 
-  const [ownedBeans, setOwnedBeans] = useState(() =>
-    loadFromStorage(BEANS_STORAGE_KEY, []),
-  )
-  const [equipments, setEquipments] = useState(() =>
-    loadFromStorage(EQUIPMENT_STORAGE_KEY, []),
-  )
-  const [brewLogs, setBrewLogs] = useState(() =>
-    loadFromStorage(BREW_LOG_STORAGE_KEY, []),
-  )
-  const [recipes, setRecipes] = useState(() =>
-    loadFromStorage(RECIPE_STORAGE_KEY, []),
-  )
-
-  useEffect(() => {
-    localStorage.setItem(BEANS_STORAGE_KEY, JSON.stringify(ownedBeans))
-  }, [ownedBeans])
-
-  useEffect(() => {
-    localStorage.setItem(EQUIPMENT_STORAGE_KEY, JSON.stringify(equipments))
-  }, [equipments])
-
-  useEffect(() => {
-    localStorage.setItem(BREW_LOG_STORAGE_KEY, JSON.stringify(brewLogs))
-  }, [brewLogs])
-
-  useEffect(() => {
-    localStorage.setItem(RECIPE_STORAGE_KEY, JSON.stringify(recipes))
-  }, [recipes])
+  const {
+    ownedBeans,
+    setOwnedBeans,
+    equipments,
+    setEquipments,
+    brewLogs,
+    setBrewLogs,
+    recipes,
+    setRecipes,
+  } = useCoffeeLogData()
 
   const handleSingleChange = (event) => {
     const { name, value } = event.target
@@ -657,17 +588,7 @@ const filteredBrewLogs = brewLogs.filter((log) => {
   }
 
   const exportBackup = () => {
-    const backup = {
-      app: BACKUP_APP_NAME,
-      version: BACKUP_VERSION,
-      exportedAt: new Date().toISOString(),
-      data: {
-        beans: ownedBeans,
-        equipments,
-        recipes,
-        brewLogs,
-      },
-    }
+    const backup = createBackup({ ownedBeans, equipments, recipes, brewLogs })
     const blob = new Blob([JSON.stringify(backup, null, 2)], {
       type: 'application/json',
     })
