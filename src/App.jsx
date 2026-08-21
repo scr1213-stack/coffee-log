@@ -1,6 +1,9 @@
 import { useRef, useState } from 'react'
+import { AuthScreen } from './components/AuthScreen'
 import { createBackup, parseBackupFile } from './data/backup'
+import { useAuth } from './hooks/useAuth'
 import { useCoffeeLogData } from './hooks/useCoffeeLogData'
+import { isSupabaseConfigured } from './lib/supabase'
 import './App.css'
 
 const emptySingleBean = {
@@ -97,7 +100,7 @@ function formatTimeInput(value) {
   return `${fourDigits.slice(0, 2)}:${fourDigits.slice(2, 4)}`
 }
 
-function App() {
+function CoffeeLogApp({ user, onSignOut }) {
   const backupFileInputRef = useRef(null)
   const [activeTab, setActiveTab] = useState('beans')
   const [beanType, setBeanType] = useState('single')
@@ -124,7 +127,14 @@ function App() {
     setBrewLogs,
     recipes,
     setRecipes,
-  } = useCoffeeLogData()
+    syncStatus,
+    syncError,
+    retrySync,
+  } = useCoffeeLogData(user)
+
+  if (syncStatus === 'loading') {
+    return <LoadingScreen message="커피 기록을 불러오는 중입니다..." />
+  }
 
   const handleSingleChange = (event) => {
     const { name, value } = event.target
@@ -642,26 +652,49 @@ const filteredBrewLogs = brewLogs.filter((log) => {
           <p>원두, 장비, 레시피, 추출 기록을 관리하는 개인 커피 데이터베이스</p>
         </div>
 
-        <div className="backup-actions" aria-label="데이터 백업 및 복원">
-          <button type="button" className="secondary-button" onClick={exportBackup}>
-            JSON 백업
-          </button>
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() => backupFileInputRef.current?.click()}
-          >
-            JSON 복원
-          </button>
-          <input
-            ref={backupFileInputRef}
-            className="backup-file-input"
-            type="file"
-            accept="application/json,.json"
-            onChange={importBackup}
-          />
+        <div className="header-actions">
+          {user && (
+            <div className="account-summary">
+              <span className={`sync-status ${syncStatus}`}>
+                {syncStatus === 'saving' ? '저장 중...' : '동기화됨'}
+              </span>
+              <span className="account-email">{user.email}</span>
+              <button type="button" className="secondary-button" onClick={onSignOut}>
+                로그아웃
+              </button>
+            </div>
+          )}
+
+          <div className="backup-actions" aria-label="데이터 백업 및 복원">
+            <button type="button" className="secondary-button" onClick={exportBackup}>
+              JSON 백업
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => backupFileInputRef.current?.click()}
+            >
+              JSON 복원
+            </button>
+            <input
+              ref={backupFileInputRef}
+              className="backup-file-input"
+              type="file"
+              accept="application/json,.json"
+              onChange={importBackup}
+            />
+          </div>
         </div>
       </header>
+
+      {syncStatus === 'error' && (
+        <div className="sync-error" role="alert">
+          <span>서버 동기화 오류: {syncError}</span>
+          <button type="button" className="secondary-button" onClick={retrySync}>
+            다시 시도
+          </button>
+        </div>
+      )}
 
       <nav className="tabs">
         <TabButton active={activeTab === 'beans'} onClick={() => setActiveTab('beans')}>
@@ -1751,6 +1784,36 @@ function PourSummary({ pours }) {
       </ol>
     </div>
   )
+}
+
+function LoadingScreen({ message }) {
+  return (
+    <main className="loading-page">
+      <p>{message}</p>
+    </main>
+  )
+}
+
+function App() {
+  const { user, isLoading, signIn, signUp, signOut } = useAuth()
+
+  if (isSupabaseConfigured && isLoading) {
+    return <LoadingScreen message="로그인 정보를 확인하는 중입니다..." />
+  }
+
+  if (isSupabaseConfigured && !user) {
+    return <AuthScreen onSignIn={signIn} onSignUp={signUp} />
+  }
+
+  const handleSignOut = async () => {
+    try {
+      await signOut()
+    } catch (error) {
+      alert(error.message || '로그아웃하지 못했습니다.')
+    }
+  }
+
+  return <CoffeeLogApp user={user} onSignOut={handleSignOut} />
 }
 
 export default App

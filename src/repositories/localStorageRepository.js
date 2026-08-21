@@ -5,6 +5,41 @@ export const STORAGE_KEYS = {
   recipes: 'coffee-log-recipes',
 }
 
+const LEGACY_DATA_OWNER_KEY = 'coffee-log-legacy-data-owner'
+const REMOTE_SYNC_MARKER_PREFIX = 'coffee-log-remote-sync-complete'
+
+export function getStorageKeys(userId) {
+  if (!userId) return STORAGE_KEYS
+
+  const legacyOwner = localStorage.getItem(LEGACY_DATA_OWNER_KEY)
+
+  if (!legacyOwner) {
+    localStorage.setItem(LEGACY_DATA_OWNER_KEY, userId)
+
+    for (const storageKey of Object.values(STORAGE_KEYS)) {
+      const savedValue = localStorage.getItem(storageKey)
+      if (savedValue) {
+        localStorage.setItem(`${storageKey}:${userId}`, savedValue)
+      }
+    }
+  }
+
+  return Object.fromEntries(
+    Object.entries(STORAGE_KEYS).map(([name, storageKey]) => [
+      name,
+      `${storageKey}:${userId}`,
+    ]),
+  )
+}
+
+export function hasCompletedRemoteSync(userId) {
+  return localStorage.getItem(`${REMOTE_SYNC_MARKER_PREFIX}:${userId}`) === 'true'
+}
+
+export function markRemoteSyncComplete(userId) {
+  localStorage.setItem(`${REMOTE_SYNC_MARKER_PREFIX}:${userId}`, 'true')
+}
+
 export function loadCollection(storageKey) {
   const savedValue = localStorage.getItem(storageKey)
 

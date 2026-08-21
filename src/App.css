@@ -39,8 +39,156 @@ body {
   gap: 8px;
 }
 
+.header-actions {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+}
+
+.account-summary {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.account-email {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sync-status {
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: #e1efe4;
+  color: #285b35;
+  font-weight: 800;
+}
+
+.sync-status.saving {
+  background: #fff0c7;
+  color: #765109;
+}
+
+.sync-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+  border: 1px solid #e8b6ad;
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: #fff0ed;
+  color: #8a2c20;
+}
+
 .backup-file-input {
   display: none;
+}
+
+.auth-page,
+.loading-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.loading-page {
+  color: #725f50;
+  font-weight: 800;
+}
+
+.auth-card {
+  width: min(440px, 100%);
+  border: 1px solid #dfd1c2;
+  border-radius: 22px;
+  padding: 30px;
+  background: #ffffff;
+  box-shadow: 0 18px 48px rgba(68, 43, 24, 0.12);
+}
+
+.auth-card h1 {
+  margin: 4px 0 8px;
+  font-size: 36px;
+}
+
+.auth-eyebrow {
+  margin: 0;
+  color: #9b6743;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.auth-description {
+  margin: 0 0 24px;
+  color: #725f50;
+  line-height: 1.6;
+}
+
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.auth-tabs button {
+  border: 0;
+  border-radius: 12px;
+  padding: 11px;
+  background: #efe6dc;
+  color: #5b341d;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.auth-tabs button.active {
+  background: #5b341d;
+  color: #ffffff;
+}
+
+.auth-form {
+  display: grid;
+  gap: 16px;
+}
+
+.auth-form label {
+  display: grid;
+  gap: 8px;
+  font-weight: 800;
+}
+
+.auth-form input {
+  width: 100%;
+  border: 1px solid #cfbead;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fffdfb;
+  color: #24170f;
+  font: inherit;
+}
+
+.auth-message {
+  margin: 0;
+  border-radius: 12px;
+  padding: 11px 12px;
+  line-height: 1.5;
+}
+
+.success-message {
+  background: #e8f5ea;
+  color: #285b35;
+}
+
+.error-message {
+  background: #fff0ed;
+  color: #8a2c20;
 }
 
 .tabs {
@@ -376,6 +524,29 @@ textarea {
 
   .backup-actions {
     width: 100%;
+  }
+
+  .header-actions,
+  .account-summary {
+    width: 100%;
+  }
+
+  .header-actions {
+    justify-items: stretch;
+  }
+
+  .account-summary {
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+
+  .account-email {
+    max-width: 100%;
+  }
+
+  .sync-error {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .backup-actions button {
