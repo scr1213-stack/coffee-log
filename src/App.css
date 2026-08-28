@@ -280,6 +280,57 @@ textarea {
   resize: vertical;
 }
 
+.date-input-group {
+  display: grid;
+  grid-template-columns: minmax(86px, 1.6fr) auto minmax(56px, 1fr) auto minmax(56px, 1fr);
+  align-items: center;
+  gap: 6px;
+  font-weight: 800;
+}
+
+.date-input-group input {
+  min-width: 0;
+  text-align: center;
+}
+
+.selected-bean-note,
+.automatic-rating {
+  border: 1px solid #d7c2ad;
+  border-radius: 14px;
+  padding: 14px;
+  background: #fff8ef;
+}
+
+.selected-bean-note {
+  display: grid;
+  gap: 6px;
+}
+
+.selected-bean-note span {
+  color: #725f50;
+  line-height: 1.5;
+}
+
+.automatic-rating {
+  display: grid;
+  align-content: center;
+  gap: 4px;
+}
+
+.automatic-rating span {
+  font-weight: 800;
+}
+
+.automatic-rating strong {
+  color: #a76124;
+  font-size: 21px;
+  letter-spacing: 0.05em;
+}
+
+.automatic-rating small {
+  color: #76675a;
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

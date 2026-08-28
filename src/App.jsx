@@ -13,10 +13,39 @@ const emptySingleBean = {
   altitude: '',
   variety: '',
   process: '',
+  processCustom: '',
   cuppingNote: '',
   origin: '',
+  originCustom: '',
   roastDate: '',
 }
+
+const ORIGIN_OPTIONS = [
+  '에티오피아',
+  '브라질',
+  '콜롬비아',
+  '케냐',
+  '과테말라',
+  '코스타리카',
+  '파나마',
+  '르완다',
+  '부룬디',
+  '인도네시아',
+  '베트남',
+]
+
+const PROCESS_OPTIONS = [
+  '워시드',
+  '내추럴',
+  '허니',
+  '무산소 발효',
+  '카보닉 매서레이션',
+  '퍼멘테이션',
+  '웻 헐링',
+]
+
+const OTHER_OPTION = '기타'
+const TASTE_SCORE_FIELDS = ['bitterness', 'acidity', 'sweetness', 'body', 'aroma']
 
 const emptyRatioItem = {
   name: '',
@@ -43,6 +72,7 @@ const emptyEquipmentForm = {
 
 const emptyBrewForm = {
   beanId: '',
+  recipeId: '',
   method: 'hot',
   dripperId: '',
   filterId: '',
@@ -98,6 +128,28 @@ function formatTimeInput(value) {
 
   const fourDigits = digitsOnly.slice(0, 4)
   return `${fourDigits.slice(0, 2)}:${fourDigits.slice(2, 4)}`
+}
+
+function calculateRating(form) {
+  const total = TASTE_SCORE_FIELDS.reduce(
+    (sum, fieldName) => sum + Number(form[fieldName] || 0),
+    0,
+  )
+  const average = total / TASTE_SCORE_FIELDS.length
+  return String(Math.min(5, Math.max(1, Math.round(average))))
+}
+
+function isValidIsoDate(value) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+
+  const [year, month, day] = value.split('-').map(Number)
+  const date = new Date(Date.UTC(year, month - 1, day))
+
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  )
 }
 
 function CoffeeLogApp({ user, onSignOut }) {
@@ -194,10 +246,30 @@ function CoffeeLogApp({ user, onSignOut }) {
         return
       }
 
+      if (singleBean.roastDate && !isValidIsoDate(singleBean.roastDate)) {
+        alert('로스팅일을 연도 4자리, 월 2자리, 일 2자리로 입력해주세요.')
+        return
+      }
+
+      if (singleBean.origin === OTHER_OPTION && !singleBean.originCustom.trim()) {
+        alert('기타 원산지를 입력해주세요.')
+        return
+      }
+
+      if (singleBean.process === OTHER_OPTION && !singleBean.processCustom.trim()) {
+        alert('기타 가공방식을 입력해주세요.')
+        return
+      }
+
+      const { originCustom, processCustom, ...singleBeanData } = singleBean
+
       const newBean = {
         id: crypto.randomUUID(),
         createdAt: new Date().toLocaleString(),
-        ...singleBean,
+        ...singleBeanData,
+        origin: singleBean.origin === OTHER_OPTION ? originCustom.trim() : singleBean.origin,
+        process:
+          singleBean.process === OTHER_OPTION ? processCustom.trim() : singleBean.process,
       }
 
       setOwnedBeans([newBean, ...ownedBeans])
@@ -208,6 +280,12 @@ function CoffeeLogApp({ user, onSignOut }) {
 
     if (!blendBean.name.trim()) {
       alert('블렌드 이름을 입력해주세요.')
+      return
+    }
+
+
+    if (blendBean.roastDate && !isValidIsoDate(blendBean.roastDate)) {
+      alert('로스팅일을 연도 4자리, 월 2자리, 일 2자리로 입력해주세요.')
       return
     }
 
@@ -282,18 +360,26 @@ function CoffeeLogApp({ user, onSignOut }) {
       return
     }
 
-    setBrewForm({ ...brewForm, [name]: value })
+    const nextForm = { ...brewForm, [name]: value }
+
+    if (TASTE_SCORE_FIELDS.includes(name)) {
+      nextForm.rating = calculateRating(nextForm)
+    }
+
+    setBrewForm(nextForm)
   }
 
   const applyRecipeToBrewForm = (recipeId) => {
     const selectedRecipe = recipes.find((recipe) => recipe.id === recipeId)
 
     if (!selectedRecipe) {
+      setBrewForm({ ...brewForm, recipeId: '' })
       return
     }
 
     setBrewForm({
       ...brewForm,
+      recipeId: selectedRecipe.id,
       method: selectedRecipe.method,
       dripperId: selectedRecipe.dripperId,
       filterId: selectedRecipe.filterId,
@@ -308,6 +394,7 @@ function CoffeeLogApp({ user, onSignOut }) {
 
   const buildBrewLogData = () => {
     const selectedBean = ownedBeans.find((bean) => bean.id === brewForm.beanId)
+    const selectedRecipe = recipes.find((recipe) => recipe.id === brewForm.recipeId)
     const selectedDripper = equipments.find((equipment) => equipment.id === brewForm.dripperId)
     const selectedFilter = equipments.find((equipment) => equipment.id === brewForm.filterId)
     const selectedGrinder = equipments.find((equipment) => equipment.id === brewForm.grinderId)
@@ -320,6 +407,9 @@ function CoffeeLogApp({ user, onSignOut }) {
       beanId: selectedBean.id,
       beanName: selectedBean.name,
       beanType: selectedBean.type,
+
+      recipeId: selectedRecipe?.id || '',
+      recipeName: selectedRecipe?.name || '',
 
       method: brewForm.method,
 
@@ -337,7 +427,7 @@ function CoffeeLogApp({ user, onSignOut }) {
       temperature: brewForm.temperature,
       brewTime: brewForm.brewTime,
 
-      rating: brewForm.rating,
+      rating: calculateRating(brewForm),
       bitterness: brewForm.bitterness,
       acidity: brewForm.acidity,
       sweetness: brewForm.sweetness,
@@ -392,6 +482,7 @@ function CoffeeLogApp({ user, onSignOut }) {
   const startEditBrewLog = (log) => {
     setBrewForm({
       beanId: log.beanId,
+      recipeId: log.recipeId || '',
       method: log.method,
       dripperId: log.dripperId,
       filterId: log.filterId,
@@ -402,7 +493,7 @@ function CoffeeLogApp({ user, onSignOut }) {
       bypassWater: log.bypassWater,
       temperature: log.temperature,
       brewTime: log.brewTime,
-      rating: log.rating,
+      rating: calculateRating(log),
       bitterness: log.bitterness,
       acidity: log.acidity,
       sweetness: log.sweetness,
@@ -447,7 +538,8 @@ const resetLogFilters = () => {
 const filteredBrewLogs = brewLogs.filter((log) => {
   const methodMatched = logFilters.method === 'all' || log.method === logFilters.method
   const beanMatched = logFilters.beanId === 'all' || log.beanId === logFilters.beanId
-  const ratingMatched = logFilters.rating === 'all' || log.rating === logFilters.rating
+  const ratingMatched =
+    logFilters.rating === 'all' || calculateRating(log) === logFilters.rating
 
   return methodMatched && beanMatched && ratingMatched
 })
@@ -889,33 +981,56 @@ function SingleBeanForm({ bean, onChange }) {
 
         <label>
           가공방식
-          <input
+          <select
             name="process"
             value={bean.process}
             onChange={onChange}
-            placeholder="예: 워시드, 내추럴"
-          />
+          >
+            <option value="">가공방식을 선택하세요</option>
+            {PROCESS_OPTIONS.map((process) => (
+              <option key={process} value={process}>{process}</option>
+            ))}
+            <option value={OTHER_OPTION}>{OTHER_OPTION}</option>
+          </select>
+          {bean.process === OTHER_OPTION && (
+            <input
+              name="processCustom"
+              value={bean.processCustom}
+              onChange={onChange}
+              placeholder="가공방식을 직접 입력하세요"
+            />
+          )}
         </label>
 
         <label>
           원산지
-          <input
+          <select
             name="origin"
             value={bean.origin}
             onChange={onChange}
-            placeholder="예: 에티오피아"
-          />
+          >
+            <option value="">원산지를 선택하세요</option>
+            {ORIGIN_OPTIONS.map((origin) => (
+              <option key={origin} value={origin}>{origin}</option>
+            ))}
+            <option value={OTHER_OPTION}>{OTHER_OPTION}</option>
+          </select>
+          {bean.origin === OTHER_OPTION && (
+            <input
+              name="originCustom"
+              value={bean.originCustom}
+              onChange={onChange}
+              placeholder="원산지를 직접 입력하세요"
+            />
+          )}
         </label>
 
-        <label>
-          로스팅일
-          <input
-            type="date"
-            name="roastDate"
-            value={bean.roastDate}
-            onChange={onChange}
-          />
-        </label>
+        <DateField
+          label="로스팅일"
+          name="roastDate"
+          value={bean.roastDate}
+          onChange={onChange}
+        />
       </div>
 
       <label>
@@ -962,15 +1077,12 @@ function BlendBeanForm({
           />
         </label>
 
-        <label>
-          로스팅일
-          <input
-            type="date"
-            name="roastDate"
-            value={bean.roastDate}
-            onChange={onFieldChange}
-          />
-        </label>
+        <DateField
+          label="로스팅일"
+          name="roastDate"
+          value={bean.roastDate}
+          onChange={onFieldChange}
+        />
       </div>
 
       <label>
@@ -1017,6 +1129,7 @@ function BlendBeanForm({
         onAdd={onAddRatioItem}
         onRemove={onRemoveRatioItem}
         total={getRatioTotal(bean.processes)}
+        suggestions={PROCESS_OPTIONS}
       />
 
       <RatioInputGroup
@@ -1029,6 +1142,7 @@ function BlendBeanForm({
         onAdd={onAddRatioItem}
         onRemove={onRemoveRatioItem}
         total={getRatioTotal(bean.origins)}
+        suggestions={ORIGIN_OPTIONS}
       />
     </>
   )
@@ -1044,6 +1158,7 @@ function RatioInputGroup({
   onAdd,
   onRemove,
   total,
+  suggestions = [],
 }) {
   const isTotalValid = total === 100
 
@@ -1062,6 +1177,7 @@ function RatioInputGroup({
             <label>
               {itemLabel}
               <input
+                list={suggestions.length > 0 ? `${groupName}-suggestions` : undefined}
                 name="name"
                 value={item.name}
                 onChange={(event) => onChange(groupName, index, event)}
@@ -1091,6 +1207,14 @@ function RatioInputGroup({
           </div>
         ))}
       </div>
+
+      {suggestions.length > 0 && (
+        <datalist id={`${groupName}-suggestions`}>
+          {suggestions.map((suggestion) => (
+            <option key={suggestion} value={suggestion} />
+          ))}
+        </datalist>
+      )}
 
       <button type="button" className="secondary-button" onClick={() => onAdd(groupName)}>
         항목 추가
@@ -1288,6 +1412,9 @@ function BrewLogTab({
   onSubmit,
   onCancelEdit,
 }) {
+  const selectedBean = beans.find((bean) => bean.id === form.beanId)
+  const automaticRating = calculateRating(form)
+
   return (
     <section className="card">
       <div className="section-header">
@@ -1321,10 +1448,17 @@ function BrewLogTab({
             </select>
           </label>
 
+          {selectedBean && (
+            <div className="selected-bean-note" role="status">
+              <strong>{selectedBean.name} 컵노트</strong>
+              <span>{selectedBean.cuppingNote || '등록된 컵노트가 없습니다.'}</span>
+            </div>
+          )}
+
           <label>
             레시피 불러오기
             <select
-              value=""
+              value={form.recipeId}
               onChange={(event) => onApplyRecipe(event.target.value)}
             >
               <option value="">레시피를 선택하세요</option>
@@ -1358,7 +1492,11 @@ function BrewLogTab({
           </div>
 
           <div className="grid">
-            <RatingSelect label="별점" name="rating" value={form.rating} onChange={onChange} />
+            <div className="automatic-rating" aria-live="polite">
+              <span>자동 별점</span>
+              <strong>{'★'.repeat(Number(automaticRating))}{'☆'.repeat(5 - Number(automaticRating))}</strong>
+              <small>맛 평가 5개 항목의 평균</small>
+            </div>
             <ScoreSelect label="쓴맛" name="bitterness" value={form.bitterness} onChange={onChange} />
             <ScoreSelect label="산미" name="acidity" value={form.acidity} onChange={onChange} />
             <ScoreSelect label="단맛" name="sweetness" value={form.sweetness} onChange={onChange} />
@@ -1585,17 +1723,65 @@ function TextInput({ label, name, value, onChange, placeholder }) {
   )
 }
 
-function RatingSelect({ label, name, value, onChange }) {
+function DateField({ label, name, value, onChange }) {
+  const monthInputRef = useRef(null)
+  const dayInputRef = useRef(null)
+  const [year = '', month = '', day = ''] = value ? value.split('-') : []
+
+  const updatePart = (partIndex, nextValue) => {
+    const nextParts = [year, month, day]
+    nextParts[partIndex] = nextValue.replace(/\D/g, '')
+    const hasValue = nextParts.some(Boolean)
+
+    onChange({
+      target: {
+        name,
+        value: hasValue ? nextParts.join('-') : '',
+      },
+    })
+
+    if (partIndex === 0 && nextParts[0].length === 4) {
+      monthInputRef.current?.focus()
+    }
+
+    if (partIndex === 1 && nextParts[1].length === 2) {
+      dayInputRef.current?.focus()
+    }
+  }
+
   return (
-    <label>
+    <label className="date-field">
       {label}
-      <select name={name} value={value} onChange={onChange}>
-        <option value="1">★☆☆☆☆</option>
-        <option value="2">★★☆☆☆</option>
-        <option value="3">★★★☆☆</option>
-        <option value="4">★★★★☆</option>
-        <option value="5">★★★★★</option>
-      </select>
+      <span className="date-input-group">
+        <input
+          aria-label={`${label} 연도`}
+          inputMode="numeric"
+          maxLength="4"
+          placeholder="YYYY"
+          value={year}
+          onChange={(event) => updatePart(0, event.target.value)}
+        />
+        <span>-</span>
+        <input
+          ref={monthInputRef}
+          aria-label={`${label} 월`}
+          inputMode="numeric"
+          maxLength="2"
+          placeholder="MM"
+          value={month}
+          onChange={(event) => updatePart(1, event.target.value)}
+        />
+        <span>-</span>
+        <input
+          ref={dayInputRef}
+          aria-label={`${label} 일`}
+          inputMode="numeric"
+          maxLength="2"
+          placeholder="DD"
+          value={day}
+          onChange={(event) => updatePart(2, event.target.value)}
+        />
+      </span>
     </label>
   )
 }
@@ -1720,7 +1906,8 @@ function LogsTab({
                 <InfoRow label="가수량" value={log.bypassWater ? `${log.bypassWater}g` : ''} />
                 <InfoRow label="물 온도" value={log.temperature ? `${log.temperature}℃` : ''} />
                 <InfoRow label="실제 시간" value={log.brewTime} />
-                <InfoRow label="별점" value={'★'.repeat(Number(log.rating))} />
+                {log.recipeName && <InfoRow label="불러온 레시피" value={log.recipeName} />}
+                <InfoRow label="별점" value={'★'.repeat(Number(calculateRating(log)))} />
                 <InfoRow
                   label="맛 평가"
                   value={`쓴맛 ${log.bitterness} / 산미 ${log.acidity} / 단맛 ${log.sweetness} / 바디 ${log.body} / 향 ${log.aroma}`}
