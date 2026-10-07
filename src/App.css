@@ -469,6 +469,21 @@ textarea {
   margin-bottom: 14px;
 }
 
+.bean-card-header > div:first-child {
+  min-width: 0;
+}
+
+.bean-card-header .section-actions {
+  flex: 0 0 auto;
+  flex-flow: row nowrap;
+  align-items: center;
+}
+
+.bean-card-header .section-actions button {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 .bean-card-header h3 {
   margin: 8px 0 0;
   font-size: 22px;
@@ -640,6 +655,11 @@ textarea {
   .bean-card-header,
   .small-card {
     flex-direction: column;
+  }
+
+  .bean-card-header .section-actions {
+    flex-direction: row;
+    width: auto;
   }
 
   .backup-actions {

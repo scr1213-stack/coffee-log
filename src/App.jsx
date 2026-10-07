@@ -73,6 +73,46 @@ const PROCESS_KEYWORDS = [
   ['허니', ['허니', 'honey']],
 ]
 
+const REGION_KEYWORDS = [
+  ['엘 브리얀테', ['엘브리얀테', '엘 브리얀테', 'el brillante']],
+  ['엘 파라이소', ['엘파라이소', '엘 파라이소', 'el paraiso', 'el paraíso']],
+  ['파라이소', ['파라이소', 'paraiso', 'paraíso']],
+  ['술 데 미나스', ['술데미나스', '술 데 미나스', 'sul de minas']],
+  ['미나스 제라이스', ['미나스제라이스', '미나스 제라이스', 'minas gerais']],
+  ['예가체프', ['예가체프', 'yirgacheffe']],
+  ['키린야가', ['키린야가', 'kirinyaga']],
+  ['안티오키아', ['안티오키아', 'antioquia']],
+  ['모지아나', ['모지아나', 'mogiana']],
+  ['세하도', ['세하도', 'cerrado']],
+  ['시다마', ['시다마', '시다모', 'sidama', 'sidamo']],
+  ['나리뇨', ['나리뇨', 'narino', 'nariño']],
+  ['우일라', ['우일라', 'huila']],
+  ['톨리마', ['톨리마', 'tolima']],
+  ['카우카', ['카우카', 'cauca']],
+  ['칼다스', ['칼다스', 'caldas']],
+  ['킨디오', ['킨디오', 'quindio', 'quindío']],
+  ['니에리', ['니에리', 'nyeri']],
+  ['구지', ['구지', 'guji']],
+]
+
+const VARIETY_KEYWORDS = [
+  ['티피카 메호라도', ['티피카 메호라도', 'typica mejorado']],
+  ['핑크 버번', ['핑크 버번', '핑크버번', 'pink bourbon']],
+  ['옐로우 버번', ['옐로우 버번', '옐로우버번', 'yellow bourbon']],
+  ['레드 버번', ['레드 버번', '레드버번', 'red bourbon']],
+  ['SL28', ['sl28', 'sl-28']],
+  ['SL34', ['sl34', 'sl-34']],
+  ['게이샤', ['게이샤', '게샤', 'geisha', 'gesha']],
+  ['카스티요', ['카스티요', '카스티오', 'castillo']],
+  ['파카마라', ['파카마라', 'pacamara']],
+  ['카투아이', ['카투아이', 'catuai', 'catuaí']],
+  ['카투라', ['카투라', 'caturra']],
+  ['문도 노보', ['문도노보', '문도 노보', 'mundo novo']],
+  ['티피카', ['티피카', 'typica']],
+  ['버번', ['버번', 'bourbon']],
+  ['헤어룸', ['헤어룸', 'heirloom']],
+]
+
 const emptyRatioItem = {
   name: '',
   ratio: '',
@@ -185,6 +225,25 @@ function findKeywordValue(name, keywordGroups) {
   )?.[0]
 }
 
+function findRegionOrFarm(name) {
+  const detectedRegion = findKeywordValue(name, REGION_KEYWORDS)
+  if (detectedRegion) return detectedRegion
+
+  const tokens = name.trim().split(/\s+/)
+  const markerIndex = tokens.findIndex((token) =>
+    /농장|팜|farm|finca|핀카|estate/i.test(token),
+  )
+
+  if (markerIndex < 0) return ''
+
+  const marker = tokens[markerIndex].toLocaleLowerCase()
+  if (/finca|핀카/.test(marker)) {
+    return tokens.slice(markerIndex, markerIndex + 3).join(' ')
+  }
+
+  return tokens.slice(Math.max(0, markerIndex - 2), markerIndex + 1).join(' ')
+}
+
 function CoffeeLogApp({ user, onSignOut }) {
   const backupFileInputRef = useRef(null)
   const [activeTab, setActiveTab] = useState('beans')
@@ -228,9 +287,13 @@ function CoffeeLogApp({ user, onSignOut }) {
     if (name === 'name') {
       const detectedOrigin = findKeywordValue(value, ORIGIN_KEYWORDS)
       const detectedProcess = findKeywordValue(value, PROCESS_KEYWORDS)
+      const detectedRegion = findRegionOrFarm(value)
+      const detectedVariety = findKeywordValue(value, VARIETY_KEYWORDS)
 
       if (detectedOrigin) nextBean.origin = detectedOrigin
       if (detectedProcess) nextBean.process = detectedProcess
+      if (detectedRegion) nextBean.region = detectedRegion
+      if (detectedVariety) nextBean.variety = detectedVariety
     }
 
     setSingleBean(nextBean)
@@ -1034,16 +1097,17 @@ function SingleBeanForm({ bean, onChange }) {
           onChange={onChange}
           placeholder="예: 에티오피아 구지"
         />
+        <small className="field-hint">이름에 포함된 원산지·지역/농장·품종·가공방식을 인식하면 아래 항목에 자동 입력됩니다.</small>
       </label>
 
       <div className="grid">
         <label>
-          지역
+          지역 / 농장
           <input
             name="region"
             value={bean.region}
             onChange={onChange}
-            placeholder="예: 구지, 예가체프"
+            placeholder="예: 구지, 엘 파라이소 농장"
           />
         </label>
 
