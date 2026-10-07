@@ -38,6 +38,7 @@ const PROCESS_OPTIONS = [
   '워시드',
   '내추럴',
   '허니',
+  '슈가케인 EA',
   '무산소 발효',
   '카보닉 매서레이션',
   '퍼멘테이션',
@@ -46,6 +47,31 @@ const PROCESS_OPTIONS = [
 
 const OTHER_OPTION = '기타'
 const TASTE_SCORE_FIELDS = ['bitterness', 'acidity', 'sweetness', 'body', 'aroma']
+
+const ORIGIN_KEYWORDS = [
+  ['에티오피아', ['에티오피아', 'ethiopia']],
+  ['브라질', ['브라질', 'brazil']],
+  ['콜롬비아', ['콜롬비아', 'colombia']],
+  ['과테말라', ['과테말라', 'guatemala']],
+  ['코스타리카', ['코스타리카', 'costa rica']],
+  ['파나마', ['파나마', 'panama']],
+  ['르완다', ['르완다', 'rwanda']],
+  ['부룬디', ['부룬디', 'burundi']],
+  ['인도네시아', ['인도네시아', 'indonesia']],
+  ['베트남', ['베트남', 'vietnam']],
+  ['케냐', ['케냐', 'kenya']],
+]
+
+const PROCESS_KEYWORDS = [
+  ['슈가케인 EA', ['슈가케인 ea', '슈가케인', 'sugarcane ea', 'sugar cane ea']],
+  ['카보닉 매서레이션', ['카보닉 매서레이션', 'carbonic maceration']],
+  ['무산소 발효', ['무산소 발효', '무산소', '아나에어로빅', 'anaerobic']],
+  ['웻 헐링', ['웻 헐링', 'wet hulled', 'wet hulling']],
+  ['퍼멘테이션', ['퍼멘테이션', 'fermentation']],
+  ['워시드', ['워시드', 'washed']],
+  ['내추럴', ['내추럴', 'natural']],
+  ['허니', ['허니', 'honey']],
+]
 
 const emptyRatioItem = {
   name: '',
@@ -152,6 +178,13 @@ function isValidIsoDate(value) {
   )
 }
 
+function findKeywordValue(name, keywordGroups) {
+  const normalizedName = name.toLocaleLowerCase()
+  return keywordGroups.find(([, keywords]) =>
+    keywords.some((keyword) => normalizedName.includes(keyword)),
+  )?.[0]
+}
+
 function CoffeeLogApp({ user, onSignOut }) {
   const backupFileInputRef = useRef(null)
   const [activeTab, setActiveTab] = useState('beans')
@@ -190,7 +223,17 @@ function CoffeeLogApp({ user, onSignOut }) {
 
   const handleSingleChange = (event) => {
     const { name, value } = event.target
-    setSingleBean({ ...singleBean, [name]: value })
+    const nextBean = { ...singleBean, [name]: value }
+
+    if (name === 'name') {
+      const detectedOrigin = findKeywordValue(value, ORIGIN_KEYWORDS)
+      const detectedProcess = findKeywordValue(value, PROCESS_KEYWORDS)
+
+      if (detectedOrigin) nextBean.origin = detectedOrigin
+      if (detectedProcess) nextBean.process = detectedProcess
+    }
+
+    setSingleBean(nextBean)
   }
 
   const handleBlendFieldChange = (event) => {
@@ -309,6 +352,14 @@ function CoffeeLogApp({ user, onSignOut }) {
     if (!isConfirmed) return
 
     setOwnedBeans(ownedBeans.filter((bean) => bean.id !== beanId))
+  }
+
+  const toggleBeanFinished = (beanId) => {
+    setOwnedBeans(
+      ownedBeans.map((bean) =>
+        bean.id === beanId ? { ...bean, isFinished: !bean.isFinished } : bean,
+      ),
+    )
   }
 
   const clearAllBeans = () => {
@@ -449,6 +500,25 @@ function CoffeeLogApp({ user, onSignOut }) {
       return
     }
 
+    if (brewLogData.recipeId) {
+      const usedAt = new Date().toISOString()
+      const updatedAt = new Date().toLocaleString()
+
+      setRecipes(
+        recipes.map((recipe) => {
+          if (recipe.id !== brewLogData.recipeId) return recipe
+
+          const clicksChanged = recipe.grindClicks !== brewLogData.grindClicks
+          return {
+            ...recipe,
+            grindClicks: brewLogData.grindClicks,
+            lastUsedAt: usedAt,
+            ...(clicksChanged ? { updatedAt } : {}),
+          }
+        }),
+      )
+    }
+
     if (editingBrewLogId) {
       setBrewLogs(
         brewLogs.map((log) =>
@@ -542,6 +612,23 @@ const filteredBrewLogs = brewLogs.filter((log) => {
     logFilters.rating === 'all' || calculateRating(log) === logFilters.rating
 
   return methodMatched && beanMatched && ratingMatched
+})
+
+const recentRecipeOrder = new Map()
+brewLogs.forEach((log, index) => {
+  if (log.recipeId && !recentRecipeOrder.has(log.recipeId)) {
+    recentRecipeOrder.set(log.recipeId, index)
+  }
+})
+
+const recentRecipes = [...recipes].sort((recipeA, recipeB) => {
+  const usedAtA = Date.parse(recipeA.lastUsedAt || '') || 0
+  const usedAtB = Date.parse(recipeB.lastUsedAt || '') || 0
+  if (usedAtA !== usedAtB) return usedAtB - usedAtA
+
+  const logOrderA = recentRecipeOrder.get(recipeA.id) ?? Number.MAX_SAFE_INTEGER
+  const logOrderB = recentRecipeOrder.get(recipeB.id) ?? Number.MAX_SAFE_INTEGER
+  return logOrderA - logOrderB
 })
 
   const handleRecipeChange = (event) => {
@@ -860,6 +947,7 @@ const filteredBrewLogs = brewLogs.filter((log) => {
       {activeTab === 'ownedBeans' && (
         <OwnedBeansTab
           beans={ownedBeans}
+          onToggleFinished={toggleBeanFinished}
           onDelete={deleteBean}
           onClearAll={clearAllBeans}
         />
@@ -879,7 +967,7 @@ const filteredBrewLogs = brewLogs.filter((log) => {
         <BrewLogTab
           form={brewForm}
           beans={ownedBeans}
-          recipes={recipes}
+          recipes={recentRecipes}
           drippers={getEquipmentsByType('dripper')}
           filters={getEquipmentsByType('filter')}
           grinders={getEquipmentsByType('grinder')}
@@ -1223,14 +1311,14 @@ function RatioInputGroup({
   )
 }
 
-function OwnedBeansTab({ beans, onDelete, onClearAll }) {
+function OwnedBeansTab({ beans, onToggleFinished, onDelete, onClearAll }) {
   return (
     <section className="card">
       <div className="section-header">
         <div>
           <h2>원두 목록</h2>
           <p className="section-description">
-            등록한 싱글 원두와 블렌드를 확인합니다.
+            다 먹은 원두는 기록을 남긴 채 원두 선택에서 숨길 수 있습니다.
           </p>
         </div>
 
@@ -1258,12 +1346,18 @@ function OwnedBeansTab({ beans, onDelete, onClearAll }) {
                   <span className={bean.type === 'single' ? 'bean-type single' : 'bean-type blend'}>
                     {bean.type === 'single' ? '싱글' : '블렌드'}
                   </span>
+                  {bean.isFinished && <span className="bean-type finished">다 먹음</span>}
                   <h3>{bean.name}</h3>
                 </div>
 
-                <button type="button" className="remove-button" onClick={() => onDelete(bean.id)}>
-                  삭제
-                </button>
+                <div className="section-actions">
+                  <button type="button" className="secondary-button" onClick={() => onToggleFinished(bean.id)}>
+                    {bean.isFinished ? '다시 사용' : '다 먹음'}
+                  </button>
+                  <button type="button" className="remove-button" onClick={() => onDelete(bean.id)}>
+                    삭제
+                  </button>
+                </div>
               </div>
 
               {bean.type === 'single' ? (
@@ -1413,6 +1507,8 @@ function BrewLogTab({
   onCancelEdit,
 }) {
   const selectedBean = beans.find((bean) => bean.id === form.beanId)
+  const selectedRecipe = recipes.find((recipe) => recipe.id === form.recipeId)
+  const selectableBeans = beans.filter((bean) => !bean.isFinished || bean.id === form.beanId)
   const automaticRating = calculateRating(form)
 
   return (
@@ -1432,15 +1528,15 @@ function BrewLogTab({
         )}
       </div>
 
-      {beans.length === 0 ? (
-        <p className="empty">보유 원두가 없습니다. 먼저 1번 탭에서 원두를 등록해주세요.</p>
+      {selectableBeans.length === 0 ? (
+        <p className="empty">사용 가능한 원두가 없습니다. 원두를 등록하거나 원두 목록에서 다시 사용으로 바꿔주세요.</p>
       ) : (
         <form className="form" onSubmit={onSubmit}>
           <label>
             원두 선택
             <select name="beanId" value={form.beanId} onChange={onChange}>
               <option value="">원두를 선택하세요</option>
-              {beans.map((bean) => (
+              {selectableBeans.map((bean) => (
                 <option key={bean.id} value={bean.id}>
                   {bean.type === 'single' ? '[싱글]' : '[블렌드]'} {bean.name}
                 </option>
@@ -1468,6 +1564,7 @@ function BrewLogTab({
                 </option>
               ))}
             </select>
+            <small className="field-hint">최근 추출에 사용한 레시피부터 표시됩니다.</small>
           </label>
 
           <label>
@@ -1490,6 +1587,12 @@ function BrewLogTab({
             <TextInput label="물 온도 ℃" name="temperature" value={form.temperature} onChange={onChange} placeholder="예: 92" />
             <TextInput label="실제 시간" name="brewTime" value={form.brewTime} onChange={onChange} placeholder="예: 0300 → 03:00" />
           </div>
+
+          {selectedRecipe && (
+            <p className="recipe-sync-note">
+              저장하면 현재 클릭 수가 ‘{selectedRecipe.name}’ 레시피의 기준 클릭 수에도 반영됩니다.
+            </p>
+          )}
 
           <div className="grid">
             <div className="automatic-rating" aria-live="polite">
@@ -1651,9 +1754,9 @@ function RecipeTab({
         {recipes.length === 0 ? (
           <p className="empty">아직 저장된 레시피가 없습니다.</p>
         ) : (
-          <div className="bean-list">
+          <div className="compact-card-list">
             {recipes.map((recipe) => (
-              <article className="bean-card" key={recipe.id}>
+              <article className="bean-card compact-card" key={recipe.id}>
                 <div className="bean-card-header">
                   <div>
                     <span className="bean-type blend">
@@ -1673,22 +1776,26 @@ function RecipeTab({
                   </div>
                 </div>
 
-                <div className="bean-info">
-                  <InfoRow label="장비" value={`${recipe.dripperName || '-'} / ${recipe.filterName || '-'} / ${recipe.grinderName || '-'}`} />
-                  <InfoRow label="기준 클릭수" value={recipe.grindClicks} />
-                  <InfoRow label="원두량" value={recipe.dose ? `${recipe.dose}g` : ''} />
-                  <InfoRow label="추출수" value={recipe.water ? `${recipe.water}g` : ''} />
-                  <InfoRow label="가수량" value={recipe.bypassWater ? `${recipe.bypassWater}g` : ''} />
-                  <InfoRow label="물 온도" value={recipe.temperature ? `${recipe.temperature}℃` : ''} />
-                  <InfoRow label="목표 시간" value={recipe.targetTime} />
+                <p className="compact-summary">
+                  {recipe.grindClicks ? `${recipe.grindClicks}클릭 · ` : ''}{recipe.dose || '-'}g → {recipe.water || '-'}g · {recipe.temperature || '-'}℃
+                </p>
 
-                  <PourSummary pours={recipe.pours} />
-
-                  <InfoRow label="메모" value={recipe.memo} />
-                </div>
-
-                <small className="created-at">등록일: {recipe.createdAt}</small>
-                {recipe.updatedAt && <small className="created-at">수정일: {recipe.updatedAt}</small>}
+                <details className="card-details">
+                  <summary>상세 보기</summary>
+                  <div className="bean-info">
+                    <InfoRow label="장비" value={`${recipe.dripperName || '-'} / ${recipe.filterName || '-'} / ${recipe.grinderName || '-'}`} />
+                    <InfoRow label="기준 클릭수" value={recipe.grindClicks} />
+                    <InfoRow label="원두량" value={recipe.dose ? `${recipe.dose}g` : ''} />
+                    <InfoRow label="추출수" value={recipe.water ? `${recipe.water}g` : ''} />
+                    <InfoRow label="가수량" value={recipe.bypassWater ? `${recipe.bypassWater}g` : ''} />
+                    <InfoRow label="물 온도" value={recipe.temperature ? `${recipe.temperature}℃` : ''} />
+                    <InfoRow label="목표 시간" value={recipe.targetTime} />
+                    <PourSummary pours={recipe.pours} />
+                    <InfoRow label="메모" value={recipe.memo} />
+                  </div>
+                  <small className="created-at">등록일: {recipe.createdAt}</small>
+                  {recipe.updatedAt && <small className="created-at">수정일: {recipe.updatedAt}</small>}
+                </details>
               </article>
             ))}
           </div>
@@ -1876,9 +1983,9 @@ function LogsTab({
       ) : logs.length === 0 ? (
         <p className="empty">조건에 맞는 추출 기록이 없습니다.</p>
       ) : (
-        <div className="bean-list">
+        <div className="compact-card-list">
           {logs.map((log) => (
-            <article className="bean-card" key={log.id}>
+            <article className="bean-card compact-card" key={log.id}>
               <div className="bean-card-header">
                 <div>
                   <span className={log.beanType === 'single' ? 'bean-type single' : 'bean-type blend'}>
@@ -1898,26 +2005,30 @@ function LogsTab({
                 </div>
               </div>
 
-              <div className="bean-info">
-                <InfoRow label="장비" value={`${log.dripperName || '-'} / ${log.filterName || '-'} / ${log.grinderName || '-'}`} />
-                <InfoRow label="클릭수" value={log.grindClicks} />
-                <InfoRow label="원두량" value={log.dose ? `${log.dose}g` : ''} />
-                <InfoRow label="추출수" value={log.water ? `${log.water}g` : ''} />
-                <InfoRow label="가수량" value={log.bypassWater ? `${log.bypassWater}g` : ''} />
-                <InfoRow label="물 온도" value={log.temperature ? `${log.temperature}℃` : ''} />
-                <InfoRow label="실제 시간" value={log.brewTime} />
-                {log.recipeName && <InfoRow label="불러온 레시피" value={log.recipeName} />}
-                <InfoRow label="별점" value={'★'.repeat(Number(calculateRating(log)))} />
-                <InfoRow
-                  label="맛 평가"
-                  value={`쓴맛 ${log.bitterness} / 산미 ${log.acidity} / 단맛 ${log.sweetness} / 바디 ${log.body} / 향 ${log.aroma}`}
-                />
-                <InfoRow label="맛 메모" value={log.tasteMemo} />
-                <InfoRow label="다음 수정" value={log.nextAdjustment} />
-              </div>
+              <p className="compact-summary">
+                {'★'.repeat(Number(calculateRating(log)))} · {log.grindClicks ? `${log.grindClicks}클릭 · ` : ''}{log.dose || '-'}g → {log.water || '-'}g · {log.brewTime || '-'}
+              </p>
+              <small className="compact-date">{log.createdAt}</small>
 
-              <small className="created-at">기록일: {log.createdAt}</small>
-              {log.updatedAt && <small className="created-at">수정일: {log.updatedAt}</small>}
+              <details className="card-details">
+                <summary>상세 보기</summary>
+                <div className="bean-info">
+                  <InfoRow label="장비" value={`${log.dripperName || '-'} / ${log.filterName || '-'} / ${log.grinderName || '-'}`} />
+                  <InfoRow label="클릭수" value={log.grindClicks} />
+                  <InfoRow label="원두량" value={log.dose ? `${log.dose}g` : ''} />
+                  <InfoRow label="추출수" value={log.water ? `${log.water}g` : ''} />
+                  <InfoRow label="가수량" value={log.bypassWater ? `${log.bypassWater}g` : ''} />
+                  <InfoRow label="물 온도" value={log.temperature ? `${log.temperature}℃` : ''} />
+                  <InfoRow label="실제 시간" value={log.brewTime} />
+                  {log.recipeName && <InfoRow label="불러온 레시피" value={log.recipeName} />}
+                  <InfoRow label="별점" value={'★'.repeat(Number(calculateRating(log)))} />
+                  <InfoRow label="맛 평가" value={`쓴맛 ${log.bitterness} / 산미 ${log.acidity} / 단맛 ${log.sweetness} / 바디 ${log.body} / 향 ${log.aroma}`} />
+                  <InfoRow label="맛 메모" value={log.tasteMemo} />
+                  <InfoRow label="다음 수정" value={log.nextAdjustment} />
+                </div>
+                <small className="created-at">기록일: {log.createdAt}</small>
+                {log.updatedAt && <small className="created-at">수정일: {log.updatedAt}</small>}
+              </details>
             </article>
           ))}
         </div>
